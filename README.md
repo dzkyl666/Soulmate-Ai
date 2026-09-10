@@ -112,8 +112,8 @@
 ### 安装
 
 ```bash
-# 1. 下载代码（把下面的地址换成你自己的仓库地址）
-git clone https://github.com/你的用户名/Soulmate-Ai.git
+# 1. 下载代码
+git clone https://github.com/dzkly666/Soulmate-Ai.git
 cd Soulmate-Ai
 
 # 2. 创建虚拟环境
