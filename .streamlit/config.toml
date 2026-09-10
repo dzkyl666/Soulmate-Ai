@@ -1,0 +1,39 @@
+# Streamlit 主题配置
+# 位置必须是「运行 streamlit 时的工作目录」下的 .streamlit/config.toml
+# 改完必须重启 streamlit 才生效（Ctrl+C 再跑），浏览器 F5 无效
+
+# ══════════════════════════════════════════════
+# 当前方案：月白（默认主题，干净中性，首屏不刺眼）
+# ══════════════════════════════════════════════
+[theme]
+base = "light"                          # 基于官方浅色主题改
+primaryColor = "#5F6B76"                # 主色：按钮、输入框聚焦边框、选中态
+backgroundColor = "#FFFFFF"             # 主背景（纯白）
+secondaryBackgroundColor = "#F5F6F8"    # 次级背景：侧边栏、代码块
+textColor = "#2C2F33"                   # 正文颜色（深灰，不用纯黑）
+borderColor = "#E3E6EA"                 # 边框颜色（淡灰）
+linkColor = "#4A5560"                   # 链接颜色
+font = "sans serif"                     # 正文字体：sans serif / serif / monospace
+baseRadius = "0.75rem"                  # 组件圆角（输入框、容器）
+buttonRadius = "0.75rem"                # 按钮圆角
+
+# ══════════════════════════════════════════════
+# 备选方案（想换就改上面 6 行颜色，其余不用动）
+# ══════════════════════════════════════════════
+#
+# 【B. 清爽蓝绿】干净专业，像正经产品
+#   primaryColor = "#0E8388"
+#   backgroundColor = "#FFFFFF"
+#   secondaryBackgroundColor = "#F4F7F6"
+#   textColor = "#22302E"
+#   borderColor = "#DBE5E3"
+#   linkColor = "#0A6A6E"
+#
+# 【C. 深色夜间】晚上看屏幕不刺眼
+#   base = "dark"
+#   primaryColor = "#7FB3D5"
+#   backgroundColor = "#1A1D21"
+#   secondaryBackgroundColor = "#23272C"
+#   textColor = "#E3E6E8"
+#   borderColor = "#33383D"
+#   linkColor = "#8FC4E3"

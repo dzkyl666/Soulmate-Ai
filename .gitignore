@@ -1,0 +1,16 @@
+# Python 虚拟环境
+.venv/
+venv/
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# PyCharm 配置
+.idea/
+
+# 数据目录（本地生成：模型服务含 API Key、伴侣配置、聊天记录）——绝不上传
+data/
+
+# 老版本的单层会话目录（已被 data/ 取代，保留以作备份）
+session/
