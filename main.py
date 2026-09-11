@@ -177,7 +177,7 @@ if not provider:
 if prompt := st.chat_input("请输入你的问题"):
     st.chat_message(user_name, avatar=user_avatar).write(prompt)
     messages.append({"role": "user", "content": prompt})
-
+    mgr.save_session(messages)
     # 系统提示词 = 伴侣人设 + 占位符替换 + 「对方是谁」
     sys_prompt = mgr.build_system_prompt(companion)
 
