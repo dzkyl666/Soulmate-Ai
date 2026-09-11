@@ -224,8 +224,14 @@ class CompanionManager:
 
     @staticmethod
     def new_session_id():
-        """会话 ID 用时间戳：天然唯一、还能按字典序排时间"""
-        return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        """会话 ID = 时间戳 + 8 位随机串。
+
+        纯秒级时间戳有个洞：同一秒内连点两次「新建会话」会撞 ID，后者直接覆盖前者。
+        补 8 位随机串（2^32 种）后碰撞概率可忽略；前缀仍是时间戳，所以字典序依然
+        按时间排列（list_sessions 是按 session_id 倒序排的，这一点不能破坏）。
+        """
+        ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        return f"{ts}_{uuid.uuid4().hex[:8]}"
 
     def list_sessions(self, companion_id=None):
         """列出某个伴侣的全部会话（按时间倒序），返回 [{session_id,title,updated_at,count}]"""
