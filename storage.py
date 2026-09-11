@@ -31,10 +31,15 @@ def read_json(path: str, default=None):
 
 
 def write_json(path: str, data) -> None:
-    """写 JSON：自动建父目录；ensure_ascii=False 让中文保持可读（方便你直接打开看）"""
+    """写 JSON：自动建父目录；ensure_ascii=False 让中文保持可读（方便你直接打开看）
+
+    先写临时文件、再 os.replace 原子替换 —— 避免写到一半崩溃把原文件毁掉。
+    """
     ensure_dir(os.path.dirname(path))
-    with open(path, "w", encoding="utf-8") as f:
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
 
 
 def delete_file(path: str) -> bool:
