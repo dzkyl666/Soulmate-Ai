@@ -259,9 +259,11 @@ def _companion_form(companion, key_prefix):
     col1, col2 = st.columns(2)
     with col1:
         cur_avatar = companion.get("avatar") or DEFAULT_AVATAR
-        avatar_index = EMOJI_OPTIONS.index(cur_avatar) if cur_avatar in EMOJI_OPTIONS else 0
+        is_custom = cur_avatar not in EMOJI_OPTIONS          # 自定义 emoji（不在预设 40 个里）
+        avatar_index = EMOJI_OPTIONS.index(cur_avatar) if not is_custom else 0
         avatar = st.selectbox("头像", options=EMOJI_OPTIONS, index=avatar_index, key=f"{key_prefix}_avatar")
         manual = st.text_input("或粘贴任意 emoji（可选，填了就优先用它）",
+                               value=cur_avatar if is_custom else "",   # 回填原值，否则会被 selectbox 顶掉
                                key=f"{key_prefix}_manual",
                                placeholder="例如 🦖")
         name = st.text_input("名称", value=companion.get("name", ""), key=f"{key_prefix}_name",
