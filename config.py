@@ -21,6 +21,7 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 PROVIDERS_FILE = os.path.join(DATA_DIR, "providers.json")     # 模型服务（含 Key，明文，不上传）
 COMPANIONS_FILE = os.path.join(DATA_DIR, "companions.json")   # 伴侣定义
 SESSIONS_DIR = os.path.join(DATA_DIR, "sessions")             # 每个伴侣一个子目录
+MEMORY_DIR = os.path.join(DATA_DIR, "memory")                 # 长期记忆：每个伴侣一个文件（跨会话）
 PROFILE_FILE = os.path.join(DATA_DIR, "profile.json")         # 使用者自己的昵称/头像（全局一份，不分伴侣）
 # 老版本"单层会话"目录：只在第一次启动时用来把旧聊天搬进新结构，之后不再使用
 LEGACY_SESSION_DIR = os.path.join(BASE_DIR, "session")

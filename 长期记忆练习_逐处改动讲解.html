@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="XXolSFFSL0MzsiQecqVnek">
+<head data-page-node-id="m8sta9prg340WcdmSRZrbw">
+<meta charset="UTF-8" data-page-node-id="RrN0Pzd4VYpVogQa6rUgj6">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="hryChK26fry2A8lMFRcs6c">
+<title>Soulmate-Ai · 长期记忆练习｜逐处改动讲解</title>
+<style>
+  :root{
+    --bg:#f6f7f9;
+    --card:#ffffff;
+    --line:#e4e7ec;
+    --text:#1f2430;
+    --text2:#5b6472;
+    --text3:#8a93a3;
+    --blue:#2563eb;
+    --blue-bg:#eff4ff;
+    --green:#15803d;
+    --green-bg:#f0fdf4;
+    --red:#b42318;
+    --red-bg:#fef3f2;
+    --purple:#6d28d9;
+    --purple-bg:#f5f3ff;
+    --amber:#b45309;
+    --amber-bg:#fffbeb;
+    --mono:"Cascadia Code","JetBrains Mono",Consolas,"Courier New",monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+    font-size:15px;line-height:1.7;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px 80px}
+
+  /* ── 顶栏 ── */
+  header{
+    background:var(--card);border-bottom:1px solid var(--line);
+    padding:26px 0 22px;margin-bottom:26px;
+  }
+  header .inner{max-width:1080px;margin:0 auto;padding:0 20px}
+  h1{font-size:25px;margin:0 0 8px;letter-spacing:-.3px}
+  .sub{color:var(--text2);font-size:13.5px}
+  .badges{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+  .badge{
+    display:inline-flex;align-items:center;gap:6px;font-size:12.5px;
+    padding:4px 10px;border-radius:999px;font-weight:600;
+  }
+  .b-done{background:var(--green-bg);color:var(--green);border:1px solid #bbf7d0}
+  .b-warn{background:var(--amber-bg);color:var(--amber);border:1px solid #fde68a}
+  .b-info{background:var(--blue-bg);color:var(--blue);border:1px solid #c7d7fe}
+
+  /* ── 卡片 ── */
+  section{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:22px 24px;margin-bottom:20px}
+  h2{font-size:19px;margin:0 0 14px;display:flex;align-items:center;gap:10px}
+  h2 .num{
+    flex:none;width:26px;height:26px;border-radius:7px;background:var(--blue);color:#fff;
+    font-size:14px;display:flex;align-items:center;justify-content:center;font-weight:700;
+  }
+  h3{font-size:16px;margin:22px 0 10px;padding-left:11px;border-left:3px solid var(--blue)}
+  h4{font-size:14.5px;margin:18px 0 8px;color:var(--text2)}
+  p{margin:8px 0}
+  ul,ol{margin:8px 0;padding-left:22px}
+  li{margin:4px 0}
+  code{font-family:var(--mono);font-size:13px;background:#f1f3f7;padding:1.5px 5px;border-radius:4px;color:#3b4252}
+  a{color:var(--blue)}
+
+  /* ── 表格 ── */
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#f8fafc;font-weight:600;color:var(--text2);white-space:nowrap}
+  td code{background:transparent;padding:0}
+  tr:hover td{background:#fcfdff}
+
+  /* ── 代码块 ── */
+  .code{
+    margin:10px 0;border-radius:9px;overflow:hidden;border:1px solid var(--line);
+    background:#fbfcfe;
+  }
+  .code .tag{
+    font-size:11.5px;font-weight:700;padding:5px 12px;letter-spacing:.4px;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .code.before .tag{background:var(--red-bg);color:var(--red);border-bottom:1px solid #fecdc9}
+  .code.after  .tag{background:var(--green-bg);color:var(--green);border-bottom:1px solid #bbf7d0}
+  .code.plain  .tag{background:#f1f3f7;color:var(--text2);border-bottom:1px solid var(--line)}
+  .code pre{
+    margin:0;padding:12px 14px;overflow-x:auto;
+    font-family:var(--mono);font-size:12.6px;line-height:1.62;color:#24292f;
+  }
+  .code.before pre{color:#7a2e28;background:#fffbfa}
+  .code.after pre{color:#14532d;background:#f9fffb}
+  .code .path{font-weight:400;opacity:.75;font-family:var(--mono);font-size:11px}
+
+  /* ── 提示框 ── */
+  .box{border-radius:9px;padding:12px 15px;margin:12px 0;font-size:13.8px;border:1px solid}
+  .box .t{font-weight:700;display:block;margin-bottom:3px}
+  .box.why{background:var(--blue-bg);border-color:#c7d7fe}
+  .box.why .t{color:var(--blue)}
+  .box.warn{background:var(--amber-bg);border-color:#fde68a}
+  .box.warn .t{color:var(--amber)}
+  .box.ok{background:var(--green-bg);border-color:#bbf7d0}
+  .box.ok .t{color:var(--green)}
+  .box.key{background:var(--purple-bg);border-color:#ddd6fe}
+  .box.key .t{color:var(--purple)}
+
+  /* ── 位置标记 ── */
+  .loc{
+    display:inline-flex;align-items:center;gap:6px;font-size:12.5px;
+    background:#f1f3f7;border:1px solid var(--line);border-radius:6px;
+    padding:3px 9px;font-family:var(--mono);color:var(--text2);margin:6px 0
+  }
+
+  /* ── 文件卡 ── */
+  .filecard{border:1px solid var(--line);border-radius:11px;margin:16px 0;overflow:hidden}
+  .filecard > .head{
+    background:#f8fafc;padding:10px 15px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .filecard > .head .name{font-family:var(--mono);font-weight:700;font-size:14px}
+  .filecard > .body{padding:6px 16px 16px}
+  .pill{font-size:11.5px;padding:2px 9px;border-radius:999px;font-weight:700}
+  .pill.new{background:var(--green-bg);color:var(--green);border:1px solid #bbf7d0}
+  .pill.edit{background:var(--blue-bg);color:var(--blue);border:1px solid #c7d7fe}
+
+  /* ── 流程图 ── */
+  .flow{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+  @media(max-width:820px){.flow{grid-template-columns:1fr}}
+  .lane{border:1px solid var(--line);border-radius:11px;padding:14px 16px;background:#fcfdff}
+  .lane.sess{border-top:3px solid var(--blue)}
+  .lane.mem{border-top:3px solid var(--purple)}
+  .lane h4{margin:0 0 10px;font-size:14px}
+  .lane.sess h4{color:var(--blue)}
+  .lane.mem h4{color:var(--purple)}
+  .step{
+    display:flex;gap:9px;align-items:flex-start;font-size:13.2px;
+    padding:7px 0;border-bottom:1px dashed var(--line);
+  }
+  .step:last-child{border-bottom:none}
+  .step .n{
+    flex:none;width:19px;height:19px;border-radius:50%;font-size:11.5px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;margin-top:2px;color:#fff;background:var(--text3)
+  }
+  .lane.sess .step .n{background:var(--blue)}
+  .lane.mem .step .n{background:var(--purple)}
+  .step .txt{flex:1}
+  .step .txt b{font-weight:600}
+  .step .txt small{color:var(--text3);font-family:var(--mono);font-size:11.5px;display:block}
+
+  /* ── 自测清单 ── */
+  .check{list-style:none;padding:0;margin:10px 0}
+  .check li{display:flex;gap:11px;align-items:flex-start;padding:9px 12px;border:1px solid var(--line);border-radius:9px;margin-bottom:7px;background:#fcfdff;cursor:pointer;transition:.15s}
+  .check li:hover{border-color:#c7d7fe;background:#f8fbff}
+  .check input{margin-top:5px;width:16px;height:16px;accent-color:var(--blue);flex:none;cursor:pointer}
+  .check li.done{opacity:.55}
+  .check li.done .lab{text-decoration:line-through}
+  .check .lab{flex:1;font-size:13.6px}
+  .check .hint{display:block;color:var(--text3);font-size:12.3px;margin-top:2px}
+  .progress{height:7px;background:#eef1f6;border-radius:99px;overflow:hidden;margin:6px 0 14px}
+  .progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--blue),#60a5fa);transition:width .25s}
+  .ptext{font-size:12.5px;color:var(--text2);margin-bottom:3px}
+
+  /* ── 工具栏 ── */
+  .tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .tbtn{
+    border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 13px;
+    font-size:13px;cursor:pointer;color:var(--text2);font-weight:600
+  }
+  .tbtn:hover{border-color:var(--blue);color:var(--blue)}
+  .tbtn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+  body.hideans .code.after{position:relative}
+  body.hideans .code.after pre{filter:blur(6px);cursor:pointer;user-select:none}
+  body.hideans .code.after::after{
+    content:"🫣 练习模式：先自己想，点这里看答案";position:absolute;inset:26px 0 0 0;
+    display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--blue);
+    font-weight:600;background:rgba(255,255,255,.55)
+  }
+  body.hideans .code.after.reveal pre{filter:none}
+  body.hideans .code.after.reveal::after{display:none}
+  .toc{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin:12px 0 0}
+  .toc a{
+    display:flex;gap:8px;align-items:center;text-decoration:none;color:var(--text);
+    border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-size:13.2px;background:#fcfdff
+  }
+  .toc a:hover{border-color:var(--blue);background:#f8fbff}
+  .toc a .k{font-family:var(--mono);font-size:12px;color:var(--text3)}
+  footer{color:var(--text3);font-size:12.5px;text-align:center;padding:10px 0}
+  .kbd{font-family:var(--mono);font-size:12px;background:#f1f3f7;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px}
+</style>
+</head>
+<body data-page-node-id="u5VCMOjySDDFNPyQ359Nyx">
+
+<header data-page-node-id="yXrgiNfgLsE0iwP4aTOcGI">
+  <div class="inner" data-page-node-id="OHBSn3uqR9SJjFi8RBNFqG">
+    <h1 data-page-node-id="R2G6bBHNtpKmywTQ8Z0tCp">Soulmate-Ai · 长期记忆练习 —— 逐处改动讲解</h1>
+    <div class="sub" data-page-node-id="Mf87anD9384uYLQqhN7aE9">对应课程 P37 / P38（Memory 临时会话记忆 + 长期会话记忆）· 2026-09-14</div>
+    <div class="badges" data-page-node-id="z8sDDfdAP4LToN18nKnGyA">
+      <span class="badge b-done" data-page-node-id="Cwi7DJhjByr3BJwUnNKHcB">✅ 代码已改完（7 个文件）</span>
+      <span class="badge b-warn" data-page-node-id="uVu1JplIG3UGWrCAa0fKf8">⚠️ 还没 git commit</span>
+      <span class="badge b-info" data-page-node-id="CnY3sAz77MQbET0FmSLV4f">📖 这份文档 = 改哪里 / 怎么改 / 为什么</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap" data-page-node-id="9kIOxnBEO4OynD5xPExkEn">
+
+<!-- ═══════════ 0. 先回答你的问题 ═══════════ -->
+<section data-page-node-id="FPVbab5u8z4IYKf2UnCEAL">
+  <h2 data-page-node-id="DXZPwe5WauA3eEFzsMtXbF"><span class="num" data-page-node-id="3vJhuPVOR0HmJ3KjLztWFK">0</span>先回答你的两个问题</h2>
+
+  <div class="box ok" data-page-node-id="EDPdBI3MPuXVMFmS3zMmQ1">
+    <span class="t" data-page-node-id="OjUqCTLUXPl1gaflREfzev">Q1：能帮我写个可视化 HTML 吗？</span>
+    能，你正在看的就是。整页都是自包含的，双击就能用浏览器打开，不依赖网络。
+  </div>
+
+  <div class="box warn" data-page-node-id="TjJY0O4qYBNrh2P8YLQDEf">
+    <span class="t" data-page-node-id="Q9V4sjthEhOeHAcbRddmu9">Q2：这些代码已经改完了吗？还是等着我去改？</span>
+    <b data-page-node-id="LFhAXwXt8uDwtZBDTfbEqp">已经改完了。</b>不需要你敲任何一行。当前状态：改完 → 还没提交（git 里显示为 modified / untracked）。
+    下面是实测的 git 状态：
+  </div>
+
+  <div class="code plain" data-page-node-id="IvZHAkw8ncQswwWvNf0jZJ">
+    <div class="tag" data-page-node-id="frbgrb7n5PcEKfe4UiNOht"><span data-page-node-id="jSZLcf3VCTJ5A2RUyFnXt7">git status --short</span><span class="path" data-page-node-id="B97tpAwyAYkhvvJqo6UHvX">D:\Soulmate-Ai</span></div>
+<pre data-page-node-id="xt4VJAkQrDDiOo1hn24g5O"> M README.md              ← 改了（加了长期记忆的说明）
+ M companion_manager.py   ← 改了（5 处）
+ M config.py              ← 改了（1 行）
+ M main.py                ← 改了（2 处）
+ M sidebar.py             ← 改了（3 处）
+?? MEMORY-练习.md          ← 新增（就是"对照敲指南"）
+?? llm.py                 ← 新增（模型调用层）
+?? memory.py              ← 新增（长期记忆层）
+?? tests/test_memory.py   ← 新增（20 个单测，全过）</pre>
+  </div>
+
+  <p data-page-node-id="LDhJid8lIwMcQx6QFI2Sa8">但你说过要<b data-page-node-id="LfS3JYSjBxKWvVNkjANTcS">自己敲</b>才算练到。所以给你三条路，按你现在的精力挑一条：</p>
+
+  <table data-page-node-id="B7Ni7pv5voh01ey8oGV2yo">
+    <thead data-page-node-id="0Pjb0kvigawnFSFnFDeDcQ"><tr data-page-node-id="mJlOVUJvegP6MnRTckNjGW"><th data-page-node-id="5wAxYeKRR8zbdHYbSAKpox">路子</th><th data-page-node-id="2AgaLjxgxRdCxdhaAp5WMh">怎么做</th><th data-page-node-id="XAtdOlJBE1H7IwPqSKKaOT">适合什么时候</th></tr></thead>
+    <tbody data-page-node-id="NQzVRF8Wud2RtT9xObALBk">
+      <tr data-page-node-id="SeMR4XRwFf2pW7RYbJ0f0w">
+        <td data-page-node-id="VEkdxrL9weK3SMKuQFyTey"><b data-page-node-id="HB9YSPYd8lASB5gGJouFbE">A · 直接跑</b><br data-page-node-id="fCgTNovHIxBh4AGyyBvgie">（最快）</td>
+        <td data-page-node-id="IDHe0SxVwLzyLs07mAmF5G">什么都不动，<code data-page-node-id="Xpy25E9zNwEBHdXJuARk3I">streamlit run main.py</code>，边点边对着这份文档读代码。</td>
+        <td data-page-node-id="PtTMHlvs9utu3TnJBGhI1v">今天累了 / 只想先看到效果</td>
+      </tr>
+      <tr data-page-node-id="QZUkh3lu0bOg52xImEUGzC">
+        <td data-page-node-id="FjEjPOetF7kFY580brEKvU"><b data-page-node-id="qXxSUfm1rwgV2FkN4A5YxC">B · 存档后自己重敲</b><br data-page-node-id="mJ3Up4Kc1UntAm68XRNPGO">（推荐，符合你习惯）</td>
+        <td data-page-node-id="Pty5dT5d1H7GiF1cEcdaKQ">见下方 3 条命令。改动存进分支 → 工作区回到"改前" → 照着本页自己敲 → 用分支做对照答案。</td>
+        <td data-page-node-id="rigTk8i1ZcTQaJPOWfcs9N">想真练一遍</td>
+      </tr>
+      <tr data-page-node-id="KiMmSiUo3V6Ti4nDp7JH1i">
+        <td data-page-node-id="ukCG46NvXoVuln7FvdNYwR"><b data-page-node-id="RBCSAC5g5scdwbnChxQVZH">C · 只看 diff</b></td>
+        <td data-page-node-id="DNQUr6wdV3ziXSyMNH7u8e"><code data-page-node-id="N7rJFGcM2kZmXd7XGLxLDS">git diff</code> 一行行看，配合本页的"为什么"。</td>
+        <td data-page-node-id="B6vnkSESbauVXHWi1oY6WM">只想复习，不想重敲</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3 data-page-node-id="0jRmPkwWoitf2I0gP9GqdQ">选 B 的话，就这 3 条命令</h3>
+  <div class="code plain" data-page-node-id="kMTxQUHrCWbkRBIUCcJSex">
+    <div class="tag" data-page-node-id="qkQJ4wkDW3wZat9kKsWArg"><span data-page-node-id="oBv4mENRRGs96QmMsafjux">在 D:\Soulmate-Ai 下依次执行</span></div>
+<pre data-page-node-id="yHWiosr5iDeETsoXmFKhiZ"># ① 把现在改好的版本存进一个新分支（改动不会丢）
+git checkout -b 参考-长期记忆练习
+git add -A
+git commit -m "feat: 长期记忆（参考实现，存档用）"
+
+# ② 回到 main —— 工作区变回"一个字没改"的状态，这就是你的起点
+git checkout main
+
+# ③ 自己敲完想对照时（对比你的成果 vs 参考实现）
+git diff 参考-长期记忆练习 -- main.py
+git diff 参考-长期记忆练习 -- companion_manager.py
+git show 参考-长期记忆练习:llm.py        # 单独看某个新文件的完整内容</pre>
+  </div>
+
+  <div class="box why" data-page-node-id="0BMrdDAHtpW9NvHDMVXWLh">
+    <span class="t" data-page-node-id="MW4c3GIuLeS1y98HgCM4eQ">为什么用分支存档，而不是 git stash</span>
+    <code data-page-node-id="7YnEEEX07MCLIqu9J4YUrL">git stash</code> 也能清空工作区，但你手敲完之后 <code data-page-node-id="K8kTnoltQBZuur4Pugn3Dz">git stash pop</code> 会<b data-page-node-id="N2RvVLsMUeSwx2W9hlM8M8">冲突</b>（同一个文件两边都改过），
+    还得手动解冲突，很烦。存进分支就完全没有这个问题 —— 分支是只读的"参考答案"，随时能 <code data-page-node-id="v6Xy08pgNLn2gt1tZW8bSC">git diff</code> 对照。
+  </div>
+
+  <div class="box warn" data-page-node-id="lxyAFu5oozJVCOXj1LLfhm">
+    <span class="t" data-page-node-id="rBZOZgjJkR0zaI5l34qcKM">别忘了：先备份 data/ 之外的东西</span>
+    <code data-page-node-id="mZTbRXTSDHnMGAsGRyoDha">data/</code> 在 <code data-page-node-id="xwYBqzh2XVmXjMtHpr7sFx">.gitignore</code> 里，不受影响。但你如果已经手动跑过并产生了记忆文件，
+    建议先 <code data-page-node-id="x4v9Wb17BnuWyWl8riD7pQ">copy data\memory D:\备份</code> 再动手 —— 那是你真实聊出来的数据，删了就没了。
+  </div>
+
+  <div class="toc" data-page-node-id="oqDv1U1Uk40tnER6m54CeG">
+    <a href="#s1" data-page-node-id="17Gaa0NL7XNUNF4PZNStbf"><span class="k" data-page-node-id="LM5dx4NVMaXiBVJrjGLG8P">§1</span>核心概念：两种记忆</a>
+    <a href="#s2" data-page-node-id="oNbm44nhJheqbPCAPEpS7t"><span class="k" data-page-node-id="JrxwFzH6FzHVwE3V8lFs9s">§2</span>改动总览 + 数据流</a>
+    <a href="#s3" data-page-node-id="Gd1HobCpfSwDCPmR8ZmpRr"><span class="k" data-page-node-id="5H40CCUm4vzn90GeY2DM1w">§3</span>逐处改法（6 个文件）</a>
+    <a href="#s4" data-page-node-id="k4Beb0hYFIpT04zj6sOcgZ"><span class="k" data-page-node-id="F9NBqfNkJC8puht8P8Ghxe">§4</span>自测清单</a>
+    <a href="#s5" data-page-node-id="5UHIUPKUObXyeDHwRHwJaR"><span class="k" data-page-node-id="oetoSO2jNhBjX4GURcrvsa">§5</span>踩坑速查</a>
+    <a href="#s6" data-page-node-id="JJU9aYw19TPB5a8423HuF1"><span class="k" data-page-node-id="JuAGJAW6CEuW5jeqmILqn4">§6</span>什么<u data-page-node-id="V5dbqnRAFwre9o57A7XqT6">不</u>该改</a>
+  </div>
+</section>
+
+<!-- ═══════════ 1. 核心概念 ═══════════ -->
+<section id="s1" data-page-node-id="SRqrm9cdRtT2jMaxesO9vj">
+  <h2 data-page-node-id="mMOHv2Q92XDeHj5xHXurFr"><span class="num" data-page-node-id="CTq7trQCGnihhCJLrNMSlT">1</span>核心概念：会话记忆 ≠ 长期记忆</h2>
+
+  <p data-page-node-id="mJHGoHkIitjcNTWTmcPi1I">整个练习只有这一个东西需要真正想通，剩下都是体力活：</p>
+
+  <table data-page-node-id="JhHBshGrCAweCCn3sIn0Cj">
+    <thead data-page-node-id="IldblP9WcMUhSMNzO3FjBd"><tr data-page-node-id="uMwO5nE3VMTskxKrREdeaf"><th data-page-node-id="r23SDdfa4WLgwn731QhE8n">对比项</th><th data-page-node-id="OfNJsLKQVRGvBAjh5xSjqt">会话记忆（项目本来就有）</th><th data-page-node-id="KnFVrjrGj5BG8syRoJVZSV">长期记忆（本次新增）</th></tr></thead>
+    <tbody data-page-node-id="pxA4SDHNuzlq3KfNDwOxt5">
+      <tr data-page-node-id="AplpVAlNgwAMDJd0QxvICk"><td data-page-node-id="GFdUBFidJDGi7sM5hzKHHX">存哪</td><td data-page-node-id="xdByCFn8xxdH8rftSjhCcy"><code data-page-node-id="CkCoEA3IWPsKqx4Ox73f1H">data/sessions/&lt;伴侣id&gt;/&lt;会话id&gt;.json</code></td><td data-page-node-id="GDvzjfER0oaztCBWAN5D5L"><code data-page-node-id="t57mRp14992Mjb5qgFQjc0">data/memory/&lt;伴侣id&gt;.json</code></td></tr>
+      <tr data-page-node-id="HVRGEg6V8W60UYiavF2g4h"><td data-page-node-id="JPoyDQRIKGVKL1qj5QyZZf">归属</td><td data-page-node-id="RrRnBcfjg4uMEX3oitjDMn">某一个<b data-page-node-id="Il8vQFmnBrPUEWpZYqX2Sb">会话</b></td><td data-page-node-id="5yA8bmUE2VHwBY20Wo9SkO">某一个<b data-page-node-id="Zr2X4VdqN5Zf2QHDOwDBBV">伴侣</b></td></tr>
+      <tr data-page-node-id="i9NkJ9ADy2nrmnKgyMLFqN"><td data-page-node-id="uFhO9LfEhvBLOO6eXqoxHm">作用范围</td><td data-page-node-id="H8Xv2c6Vu8Y8vkwZNDr4Jg">只在这个会话内</td><td data-page-node-id="KfvXWX8ygbxBNwDgtW7ebG">跨会话、跨时间</td></tr>
+      <tr data-page-node-id="VNvvCjty98z3LHCdd3rO1r"><td data-page-node-id="tEPAZdlTlF9lP2wkbtaj7U">内容</td><td data-page-node-id="bNYFPLct5RUiyOSwDnE7w1">每句话的<b data-page-node-id="Ui2AWQQSOxX31tY0VVDDtn">原文</b></td><td data-page-node-id="9wxVipLvWFxofUdwQTWjnQ">模型<b data-page-node-id="vJuFr9LUYG37R5HY7tKgTa">抽取</b>出的稳定事实</td></tr>
+      <tr data-page-node-id="tupvDFFXWGw3iozPharQ3s"><td data-page-node-id="YaZdurCcBnsrqOxePl1g85">什么时候写</td><td data-page-node-id="XBkrcWz3uUAxKMmmH3OxHh">每轮自动 append</td><td data-page-node-id="PTs1dCr8GRdAMD0oNg6MeD">每轮对话后由模型判断该不该记</td></tr>
+      <tr data-page-node-id="1dQMuu9aB6vSFODnJpHDPo"><td data-page-node-id="aGCAckVBsshsoJFNzuP5qT">怎么读</td><td data-page-node-id="Yc1Q82Xj9iTgJtw2liathL"><code data-page-node-id="tLP9FogEP4d0HG4L81U2CD">messages[-history_length:]</code> 切片</td><td data-page-node-id="kHhx1MHzGGT0VmQFf1iD1u">拼进 system prompt</td></tr>
+      <tr data-page-node-id="JbfgqKj2OIgiKQizoXHx9M"><td data-page-node-id="G3td6jXX8s3mVHMd1HACj3">换个会话</td><td data-page-node-id="juyFn4ataBhqNlVoZ45F1I">❌ 归零（伴侣"失忆"）</td><td data-page-node-id="bgHmrKERAxOn27GtC0hVRb">✅ 还在（伴侣"记得你"）</td></tr>
+      <tr data-page-node-id="cCL6rfiS5jSpSUP71vKyyA"><td data-page-node-id="VwhN55aEljcJZvtEVA6Tex">数据量</td><td data-page-node-id="cdh1dvNK8eiQZPU73bLgzT">会长到几百条</td><td data-page-node-id="mtigQ4Al6VgmrY1Dy4VfjO">应该只有几十条</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box key" data-page-node-id="wpPCR5GYjOxiUXVFtWp88Z">
+    <span class="t" data-page-node-id="aoFCHN8uAkEc2trOzjopR2">一句话记住</span>
+    会话记忆记的是「<b data-page-node-id="CuFhlYKvgBqlvfFgiL6cFH">这次聊了什么</b>」；长期记忆记的是「<b data-page-node-id="yYQBfu0LkYo4uuJDbkNcYG">你是谁</b>」。
+  </div>
+
+  <div class="box why" data-page-node-id="1BZrbD5jrB4fw3uOEM2A4F">
+    <span class="t" data-page-node-id="Yv99wCSpNKrDxilrMKZTA6">为什么长期记忆不能直接把原文塞进去</span>
+    会话原文又长又杂，全塞进 system prompt 会 ① 烧 token ② 淹没有效信息
+    ③ 每次都带一遍三年前那句"今天下雨了"。所以只留稳定的、关于人的事实。
+  </div>
+
+  <h3 data-page-node-id="RrvZSd7SZAm7qIWkLamlY2">它对应到你手写的代码</h3>
+  <table data-page-node-id="yzuYFonpeGyHRlXTPaHBdX">
+    <thead data-page-node-id="8iv34ZsfZesDExtIVbkTko"><tr data-page-node-id="MRTfcBQ8R0COWSDhkXfyRj"><th data-page-node-id="BkuMadLEuxsktMmryv3ryV">课程里（<code data-page-node-id="lQWqN7DeNrQntpAQIqFE3q">day1.py</code>）你手写的</th><th data-page-node-id="XHftPkZhwMD1WZEN6Ux8BV">搬进项目后</th></tr></thead>
+    <tbody data-page-node-id="IQt8W4sJbppm4TTAviTmy5">
+      <tr data-page-node-id="omt5AVmwCTtgfXWtAqc7Ea"><td data-page-node-id="uI0QHYNEEvTqxOSscNXffS">存聊天消息 <code data-page-node-id="ikLURFYAlwcciUoA2NUYHI">List[BaseMessage]</code></td><td data-page-node-id="6jAa0dyjddvq0z2UEcoXAC">存关于用户的事实 <code data-page-node-id="cEwZKG2XiVu286xhae86fR">List[dict]</code></td></tr>
+      <tr data-page-node-id="YJN8JXHxOo4RcnNAYytWd5"><td data-page-node-id="W4t7AGJxZJz0k7yc6YvBXB"><code data-page-node-id="USYPqTBtgjuf6ygBDPN7qq">session_id</code> 定位文件</td><td data-page-node-id="V2YnhGdxhylO1iQttzDOI0"><code data-page-node-id="eD0hz15h6GyVjK1rROqmQD">companion_id</code> 定位文件</td></tr>
+      <tr data-page-node-id="TfHmDxu2O1suxft6vGK0jN"><td data-page-node-id="dcJ6EZDAfaacnhr8xLUYCP"><code data-page-node-id="sRjleyU3AWfP6oA3wvQK3c">@property messages</code> 现读盘</td><td data-page-node-id="dlPnDhDR0gmHciFUEEYZ9N"><code data-page-node-id="p28iGVQNenuNUZnArB6Ayj">@property facts</code> 现读盘</td></tr>
+      <tr data-page-node-id="efEXtjd0CGuGHBV9RYT7tD"><td data-page-node-id="MlpC8P7iIUuzF5PGlDLf6I"><code data-page-node-id="scnEcujkTGGYCsAHCzkMa4">add_messages()</code> 写盘</td><td data-page-node-id="sGFWOV7HLCKblv9bGepOtB"><code data-page-node-id="2MqVNCdkLBSQMb5KOxsXGf">add()</code> 去重后写盘</td></tr>
+      <tr data-page-node-id="PwZHSHtt4KFRSpwgu0FyIc"><td data-page-node-id="9eTZmpCRHyA9WDXSxAMa0x"><code data-page-node-id="Mr0vryyY79X5VZgLyGIBHx">clear()</code></td><td data-page-node-id="KWLR5cos7SAVkq7eLSaOVq"><code data-page-node-id="ibTap741l1Rn3I5qZTBC3A">clear()</code></td></tr>
+      <tr data-page-node-id="ZFOnyH2B2wCFxOvHFVBGuP"><td data-page-node-id="49iXaTVn4IbvCDJvj34GQG"><code data-page-node-id="QCGFkkjtiziFnyqid5eNvW">RunnableWithMessageHistory</code> 自动喂历史</td><td data-page-node-id="W8EMlTvlpz5XJG475ZDkQJ"><code data-page-node-id="ghXCCG64GRPOgroHJnOtYj">build_system_prompt()</code> 手动拼记忆</td></tr>
+      <tr data-page-node-id="Cl3FeAb7LeGwh0ZsxXUdd6"><td data-page-node-id="8zGi81TJYOJDcVi2jZCRKA"><code data-page-node-id="NBXAxLm7EU8g3327MVNvQX">InMemoryChatMessageHistory</code>（进程内存）</td><td data-page-node-id="Fn28CBEj3QgSemgStY4zAm"><code data-page-node-id="nqNaoy5Z0pA7XNGftZ0mHl">st.session_state["messages"]</code>（浏览器会话内存）</td></tr>
+    </tbody>
+  </table>
+  <p class="sub" data-page-node-id="bTqfL6dooAUA6Dc5NC9P7e">差别只剩一个：LangChain 用 <code data-page-node-id="dxwHftXkLSPTsQz7L2lr8G">RunnableWithMessageHistory</code> 把"取历史/存历史"自动化了；项目里因为没引 LangChain，这两步是手写的。<b data-page-node-id="2u5GDScLfCw3zrGfUjozwj">机制完全一样</b> —— 这就是为什么值得先手写一遍。</p>
+</section>
+
+<!-- ═══════════ 2. 总览 + 数据流 ═══════════ -->
+<section id="s2" data-page-node-id="cKBIByMZy9QZY2q4DnEaEk">
+  <h2 data-page-node-id="WeuW1ZENOgIfOWy6SMisFg"><span class="num" data-page-node-id="vEbqfhF5SPFDmIalDQR54J">2</span>改动总览 + 一轮对话的数据流</h2>
+
+  <table data-page-node-id="mAxAlahknAC519T20yj5o5">
+    <thead data-page-node-id="7YlDZHW0x0yjkGRdFCWmxA"><tr data-page-node-id="6HLLzkLqkcJ4RKEfSklfHm"><th data-page-node-id="hCC6DJGjTtF1bjuknm7ttq">文件</th><th data-page-node-id="AGxPb0uJeHC03xz6kyBlz8">类型</th><th data-page-node-id="xGq7Fn1F0Qa70HHHkrCGKq">处数</th><th data-page-node-id="BFDnHZGqkEd2Rqr6U4OAlR">干什么</th></tr></thead>
+    <tbody data-page-node-id="2lq1DMTpOkXRnhCcMcJLrT">
+      <tr data-page-node-id="Wjc5CUqp76tmgKWi63wDxF"><td data-page-node-id="OF2QLjwd5SCcSzZj9Hp6oK"><code data-page-node-id="cAKgHblYg5wxrQY5NLZUOZ">llm.py</code></td><td data-page-node-id="EJZLUUxEhsBbV4XIC5WnXU">🆕 新增</td><td data-page-node-id="unrKL5j9ato2IdYGTvKAzM">145 行</td><td data-page-node-id="RH0NTrUW2PX1Q0V9xzFwCh">模型调用层。全项目唯一 <code data-page-node-id="9s62u5yq9GNRtIQVAE29nO">import openai</code> 的地方</td></tr>
+      <tr data-page-node-id="PSYdZBEjfURqJwyIU0Xr0t"><td data-page-node-id="KVRmuJUcD0HVGF5LTQ0J7k"><code data-page-node-id="JjZyJY2oFRFhrYjXErlqYD">memory.py</code></td><td data-page-node-id="nNCRIUoED3h09CA6UryOBq">🆕 新增</td><td data-page-node-id="0AIhLepEuPIVXIa301rTLU">179 行</td><td data-page-node-id="792OD7rAyvZuK9bydNQFS2">长期记忆存储层。对标你手写的 <code data-page-node-id="yRnpLHgpIrEnCc0WR4wsM5">FileChatMessageHistory</code></td></tr>
+      <tr data-page-node-id="pNPwXhudkG6EQvbiFSIWZW"><td data-page-node-id="WK9Ni1vxLrw58jrm7Pc7sB"><code data-page-node-id="Mk8MWlDrJxgtStxfz4pa16">config.py</code></td><td data-page-node-id="TO0nau22xe7bsnN3czZoVy">✏️ 改</td><td data-page-node-id="sAm9vdOALpCsEhjnPfq9OQ"><b data-page-node-id="NitpZPe6IIhe5jjdQPUYWd">1 处</b></td><td data-page-node-id="iq7WPEpjC0KwkGsLwd7nmn">加 <code data-page-node-id="sseDiSG6EEsHaNMdaLci5H">MEMORY_DIR</code></td></tr>
+      <tr data-page-node-id="gnPCpwify79dvK3KD48L9a"><td data-page-node-id="HXUzbgDdg3fsmV7CZNgYPy"><code data-page-node-id="m9ylXT7q43KptNnMfZdClO">companion_manager.py</code></td><td data-page-node-id="YZDxxN9WNKBOpX1XSTw5Wt">✏️ 改</td><td data-page-node-id="Eo6Gzt5D57Y8kt6VhwkWmi"><b data-page-node-id="kjdsjTLCcEbLt3yiCVzTrw">6 处</b></td><td data-page-node-id="9x7ZNMsizHIx668B78SnMG">搬走 SDK 调用 + 加记忆业务方法 + 注入 system prompt</td></tr>
+      <tr data-page-node-id="M8LnVil259hAMTmiXNEHui"><td data-page-node-id="bSdiemafxxaavt8OheMBC8"><code data-page-node-id="Wo4XCUckGCXnjXuLgHRUwt">main.py</code></td><td data-page-node-id="EDNr7TkoBB7vYuYJgLBrUL">✏️ 改</td><td data-page-node-id="50nXe8giWO5VhMf8l5dYzG"><b data-page-node-id="YfBArhLKTjOoJupCB67sUk">2 处</b></td><td data-page-node-id="EkU2xMuYY3amimBEz8bOBF">聊天段改走 <code data-page-node-id="dARMNyMFqHDXcX6brTy1VY">llm.py</code>，回复后触发记忆抽取</td></tr>
+      <tr data-page-node-id="xyw7CFwL3ZFxpVThPCGY9N"><td data-page-node-id="Vj0YB8zBIPnS3Q95yR5AAb"><code data-page-node-id="TJACcXunYrgPKRgcf4FGWC">sidebar.py</code></td><td data-page-node-id="IreyHUlzFfaoIBnpX0XgUf">✏️ 改</td><td data-page-node-id="bjBiIiJbINu1IymtBWDMZG"><b data-page-node-id="aJBvyhyiMWshFSkgWpxTw2">3 处</b></td><td data-page-node-id="rz96lECoVC4OKiNDsVAzgD">记忆面板（看 / 删 / 清空）+ 自动记忆开关</td></tr>
+    </tbody>
+  </table>
+  <p class="sub" data-page-node-id="DuDIj2KMDf1YCEMXBsv50G">规模：<code data-page-node-id="HZnVgWPbatGHoCNtGIWmlu">+234 / -73</code> 行（含两个新文件）。</p>
+
+  <h3 data-page-node-id="9HJCEft7NuybQIEvE3ld2o">一轮对话里，两块记忆各自在干嘛</h3>
+  <div class="flow" data-page-node-id="r2taANZKgePp4QG5WQawsY">
+    <div class="lane sess" data-page-node-id="ybn4eXSzBY3Iz9vlM65cev">
+      <h4 data-page-node-id="Saeh4ZeVte79YDxXprd2bO">🔵 会话记忆（临时，存在于这个会话）</h4>
+      <div class="step" data-page-node-id="PRPgYL324ggg0lxFNf5uAV"><span class="n" data-page-node-id="GekfnA4q2tXEzGhxooOYm3">1</span><span class="txt" data-page-node-id="z4EFiOQFAjvfGHSobzLPpm"><b data-page-node-id="8YaLuQDxWqTUHxxNl6yUOn">你发一句话</b><small data-page-node-id="WHbfVFa5N8HdaOjR2F6LKT">main.py · st.chat_input</small></span></div>
+      <div class="step" data-page-node-id="vAW6QIxUBACmt7Kgzrg54n"><span class="n" data-page-node-id="MVGmJzjKRQHb6fQlqRUvLm">2</span><span class="txt" data-page-node-id="nZ49VGiqtvGKztpMGFDG50"><b data-page-node-id="aFq2RzseWjYuD4b6eEOPSP">追加进当前列表</b>并落盘<small data-page-node-id="ibGZyJ6G7dfU1ViYV8FWvi">messages.append + mgr.save_session → data/sessions/…</small></span></div>
+      <div class="step" data-page-node-id="Jc0TIHHYEMSH1KATGuEW9Z"><span class="n" data-page-node-id="zf6Gh6XKmHUwNp4sGDiawK">3</span><span class="txt" data-page-node-id="P17BQFd51r5MhBCOmNN73c"><b data-page-node-id="9c3GEwhK6giT6dkvmeGiWF">切片，只带最近 N 条</b><small data-page-node-id="bmFPjiexp5XVXEEr5kEqPQ">messages[-mgr.history_length:]  ← 就是这一步在"记着这次聊了什么"</small></span></div>
+      <div class="step" data-page-node-id="du8BJrufNsmqdlJUSPdThQ"><span class="n" data-page-node-id="KAfMCG45HAAnD8OZMUKwU5">4</span><span class="txt" data-page-node-id="XI7Xi1cW6ucDnnE7Ho72Oh"><b data-page-node-id="YZrrXs0Y8HaFTEKYBQbWCW">发给模型，流式显示</b><small data-page-node-id="kQh18QV833AWOt0FcVyunB">llm.stream_chat(provider, history_messages, system_prompt=sys_prompt)</small></span></div>
+      <div class="step" data-page-node-id="28yORGYw7d8GFWifUZwcs3"><span class="n" data-page-node-id="S3l9Vl97iDYpwJfcC8X2eK">5</span><span class="txt" data-page-node-id="RijwSGuFY7hsfgPiKwA4HT"><b data-page-node-id="iu6ijr1g7NY4m5RUqGQiPT">回复也追加进列表</b><small data-page-node-id="MA1KEED8JHFqpKbkeLEHtA">下次切片就带上它 —— 换会话则从零开始</small></span></div>
+    </div>
+    <div class="lane mem" data-page-node-id="OP9JDVYKAHuqxHUKA0N7BQ">
+      <h4 data-page-node-id="1HDAsXk0Xq8m3lHTdRF9Bk">🟣 长期记忆（跨会话，跟着伴侣走）</h4>
+      <div class="step" data-page-node-id="cnsEi8MtgoTB7Fi7A6vu64"><span class="n" data-page-node-id="4CMLNmgYcErdNgv0f0jerN">A</span><span class="txt" data-page-node-id="HIvUiw5UbuO3scpV1oYj4m"><b data-page-node-id="3CfBWpOUo6sAG2CqPKvmLb">读：拼进 system prompt</b><small data-page-node-id="quS40y5NamMR8vr4sJKnC0">build_system_prompt() → mem.to_prompt_block()</small></span></div>
+      <div class="step" data-page-node-id="gHithK153WilTwluf32kFs"><span class="n" data-page-node-id="TEuOhj2I87QPlGcetT5l2B">B</span><span class="txt" data-page-node-id="2qLCQg9A9jhmDGxMmMUKf8"><b data-page-node-id="T8yejdaam4L7ubl7gl7EK4">模型回答时就用上了</b><small data-page-node-id="h1qBppa5H0mIm22VSTnP9S">不占历史条数，不受历史长度限制</small></span></div>
+      <div class="step" data-page-node-id="mQCrl7ipxQixcPR29HSW0D"><span class="n" data-page-node-id="78NoSLWt2GNONqsADLSFvt">C</span><span class="txt" data-page-node-id="UV0RHoNxrsDmkTH9HVtLj2"><b data-page-node-id="Wmb2npc1ZyNEEMYpyK1kJG">写：回复之后才抽取</b><small data-page-node-id="sP1x2OjHjnmT7r3L0owvUi">mgr.remember_from_exchange(provider, companion, messages)</small></span></div>
+      <div class="step" data-page-node-id="opDV022MxaTmAXypDLO8X8"><span class="n" data-page-node-id="aUd6CqDnPQYGVsrDT0ZXK9">D</span><span class="txt" data-page-node-id="lMUhEMkAZquyY63T1pCSLi"><b data-page-node-id="7GNH6m4iuYK18UgF5Cig7t">模型只挑"值得记的事"</b><small data-page-node-id="72FAYWHe6icYlS0uwhW9Pn">llm.chat(system_prompt=EXTRACT_PROMPT) → 返回 JSON 数组</small></span></div>
+      <div class="step" data-page-node-id="tDGehMk1XtF0DF9HJvg4lv"><span class="n" data-page-node-id="wSkLs1wNp9sfA5ogRJeapf">E</span><span class="txt" data-page-node-id="NCpQCScYnHZHzRAIFs7Gqp"><b data-page-node-id="9saPOFjzqRJrx3OReAdPmD">去重后写盘</b><small data-page-node-id="CitOZ39wXIfKSSuM1tebzl">parse_extraction() → CompanionMemory.add() → data/memory/&lt;伴侣id&gt;.json</small></span></div>
+      <div class="step" data-page-node-id="C19CbfIVos1XTnCXAdnZP7"><span class="n" data-page-node-id="FEEANiqSs6D73EJ8rDllZP">F</span><span class="txt" data-page-node-id="pTf7YmtrNCFvbRIAELbQsX"><b data-page-node-id="RVw9Wum0vUFExTQlQtfhwU">下一轮 A 又读回来</b><small data-page-node-id="Llh3p2QaLIF3xIHNuh1f1S">所以刚记住的下一轮立刻生效 —— 换会话也还在 ✓</small></span></div>
+    </div>
+  </div>
+
+  <div class="box key" data-page-node-id="KDs6Xq0AToD9sTzDlLsWnG">
+    <span class="t" data-page-node-id="rDJ7iDzJlu4tSmTGOWWMlx">这就是本次改动的骨架</span>
+    左边（会话记忆）本来就有，这次只是把注释写清楚；右边（长期记忆）是新增的 A–F 六步，
+    分散在 <code data-page-node-id="4e31kgJMI6EdqXdNXAFx9K">memory.py</code> / <code data-page-node-id="eAdDaflphdf5njFkVMFfd3">companion_manager.py</code> / <code data-page-node-id="aDdVmUEPTLVszIOUIgG1L0">main.py</code> / <code data-page-node-id="CbbEHs4nLAuZVBYrMvqZxW">sidebar.py</code> 里。
+  </div>
+</section>
+
+<!-- ═══════════ 3. 逐处改法 ═══════════ -->
+<section id="s3" data-page-node-id="edir7xvOC8XCx9I9qMuzt7">
+  <h2 data-page-node-id="XVNdDju4Jq4o75tBNw5QPN"><span class="num" data-page-node-id="HndcSBRqJ5bdGHbnd2CiBA">3</span>逐处改法</h2>
+
+  <div class="tools" data-page-node-id="E0jwzsG0lNgyGFwEwKM5Ka">
+    <button class="tbtn" id="btn-mode" data-page-node-id="D2J5QejjQxuCqdzLFBzFYv">🫣 练习模式：遮住「改后」代码</button>
+    <button class="tbtn" id="btn-ans" data-page-node-id="qSQfV4H7UwsnDuZIxGgZhP">👀 全部显示答案</button>
+    <span class="sub" data-page-node-id="jHWBnu2i7z7UwKsP4fLdUN">练习模式下，先自己想怎么写，再点开绿框对照。</span>
+  </div>
+
+  <!-- ===== 3.1 config.py ===== -->
+  <div class="filecard" data-page-node-id="z3U2sNQkOlv8BkTtgOPnU5">
+    <div class="head" data-page-node-id="tJovDzopM3DxM0t9PyPlSB">
+      <span class="name" data-page-node-id="C0KK0G75MNz9knGk3sYFlJ">config.py</span>
+      <span class="pill edit" data-page-node-id="r1nvPmPoYFXC9L5N4b97Wg">改 · 1 处</span>
+      <span class="sub" data-page-node-id="H2WU45UQb74twiZEeSvLHI">加一行常量</span>
+    </div>
+    <div class="body" data-page-node-id="aLjDCmbDYGzv0WmFH9i4JD">
+      <span class="loc" data-page-node-id="cXbGsX8QFItN2s4bj0IliG">📍 路径区，<code data-page-node-id="DnvPfXW5rZB6lImHiLHgdB">SESSIONS_DIR</code> 下面</span>
+
+      <div class="code before" data-page-node-id="UPetEyCBPRfr91q5aCqo1c">
+        <div class="tag" data-page-node-id="AXPKVRKEi8TLuzVnuvcIWX"><span data-page-node-id="f8dDEBnHKeBetCvNJohzxw">改前</span></div>
+<pre data-page-node-id="Oyurrk3rxrvcG8TbwIesPa">SESSIONS_DIR = os.path.join(DATA_DIR, "sessions")             # 每个伴侣一个子目录
+PROFILE_FILE = os.path.join(DATA_DIR, "profile.json")         # 使用者自己的昵称/头像</pre>
+      </div>
+
+      <div class="code after" data-page-node-id="MDGoIcELkiqWBZPwgFDkZ5">
+        <div class="tag" data-page-node-id="yof2EFunZmnbSoatnmIkcA"><span data-page-node-id="ky7q59gdbHCpSdKCAll6lg">改后</span><span data-page-node-id="9UPeUQl7EbNCiOqkWHM8pv">+1 行</span></div>
+<pre data-page-node-id="tHupn3qxsD0fyUWe471rhU">SESSIONS_DIR = os.path.join(DATA_DIR, "sessions")             # 每个伴侣一个子目录
+MEMORY_DIR = os.path.join(DATA_DIR, "memory")                 # 长期记忆：每个伴侣一个文件（跨会话）
+PROFILE_FILE = os.path.join(DATA_DIR, "profile.json")         # 使用者自己的昵称/头像</pre>
+      </div>
+
+      <div class="box why" data-page-node-id="W0PnkRJUpVAiiPjL6NLcvE">
+        <span class="t" data-page-node-id="THEnZmiD2R4mrPio4ziseU">为什么改这里</span>
+        <code data-page-node-id="vTCuWpQfapLRQso2pOp5BA">memory.py</code> 要拼文件路径，但路径规则不该写在存储层里 —— 项目里所有路径都集中在 <code data-page-node-id="j3sQYSmIS7NIpK54WOfrB5">config.py</code>，
+        跟着这个约定走，以后换目录只改一处。
+        <br data-page-node-id="Lb7KmT7SNxHF4JX4vG1D62">另外 <code data-page-node-id="rjSYuqC4WWFlFbSpouNfC9">data/</code> 已在 <code data-page-node-id="5luy82YXCJofdfLg2xv7yT">.gitignore</code> 里 → 记忆文件不会被提交，隐私安全。
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 3.2 llm.py ===== -->
+  <div class="filecard" data-page-node-id="xZJB6zS1j0UUYG0A4YLZb7">
+    <div class="head" data-page-node-id="G3HTkfVk8j064uqzKEmd12">
+      <span class="name" data-page-node-id="q0kbzjByZ27qzqde0QGFI1">llm.py</span>
+      <span class="pill new" data-page-node-id="ywaSRB14E4TYab9HWqix6p">🆕 新增文件</span>
+      <span class="sub" data-page-node-id="LgJ2x407ySI46duwMC51SW">模型调用层 · 145 行</span>
+    </div>
+    <div class="body" data-page-node-id="sTveV9BCMCHSodNa7i8I7M">
+      <h4 data-page-node-id="PcS8A4knAwcVPKpZFuzWHq">为什么要单独抽一层</h4>
+      <p data-page-node-id="Q9vM3mafDi3iFAx60tGbc2">改之前，模型调用<b data-page-node-id="dpqZNOarRBAft21UhTcm6a">散在两个地方，各写一遍</b>：</p>
+      <div class="code plain" data-page-node-id="aHndWIs8Yn3yjVp4X60R0o">
+        <div class="tag" data-page-node-id="NVjNNSYL6oQHNNn5mkNsfU"><span data-page-node-id="dTKHmAjLB1NpgU4x4Luvqn">改之前的现状</span></div>
+<pre data-page-node-id="qbdnCIOCgwXqjccawvRygC">companion_manager.py  →  build_client() + generate_ai_title() 里的 create()
+main.py               →  聊天输入区里的 create() + 手写生成器</pre>
+      </div>
+      <p data-page-node-id="V7rl7bulpfQ5ZsIAvrjJPw">后果是「改一处忘一处」。而将来要加的东西<b data-page-node-id="Ea9DC0pXfre7HTABjZS0Nw">全是横切关注点</b>，会在两处同时发散：</p>
+      <ul data-page-node-id="kUpwEwY3ngqTS748Xv14hU">
+        <li data-page-node-id="sgA36dyIBb7MVHrLmA1D7r">Function Calling（要传 <code data-page-node-id="2vRnbiDyPc9SzFYwNhKqAa">tools</code> / <code data-page-node-id="qcgHX94OmzuvcJT9VhTDYD">tool_choice</code>）</li>
+        <li data-page-node-id="PiX3eCeOzEIJMSydNCEq8a">超时与重试、生成参数（<code data-page-node-id="rSvkN1A3aTi6EXrjxEZ7wc">temperature</code> / <code data-page-node-id="c43h0NpjFTxIPaR28uvLr3">max_tokens</code>）</li>
+        <li data-page-node-id="jsUtdrTiQiJi9GTECAG78c">厂商差异（有的兼容端点不认某些参数）</li>
+        <li data-page-node-id="mQs4bnAmGUZt2feTSSPZPK">换 SDK / 换 LangChain</li>
+      </ul>
+      <p data-page-node-id="6AHhqbY0NYQDrApVwhkjD8">抽成一层之后，这些<b data-page-node-id="vV6sp7dNmPxFPAoHlx1mgP">只改 llm.py 一处</b>。</p>
+
+      <div class="box key" data-page-node-id="uiAev3yIDUcBEwxXBmEY23">
+        <span class="t" data-page-node-id="JBE9bPFOM4Gk1z42fyiRzA">边界在哪（重要）</span>
+        <code data-page-node-id="loyCqIDZocYQSgjeVEdPEn">llm.py</code> 只认两样东西：① <code data-page-node-id="jjMVGdMnR0IyljjfSfQzvc">provider</code> 配置字典（base_url / api_key / model / preset）；② 标准 <code data-page-node-id="OOc5KxwzRlFkLeMBMobDF3">messages</code> 列表。
+        <b data-page-node-id="GMWDwS4KJiNVPHVgPZQfso">不认识</b>"伴侣""会话""人设"这些业务概念。边界清楚才好替换。
+      </div>
+
+      <h4 data-page-node-id="0vzEkaKAakVpxQWLiEtnr4">对外 4 个函数</h4>
+      <table data-page-node-id="QmWdyeagWFFbnAUDGFgqbe">
+        <thead data-page-node-id="MSxkcGn1kh0Tke5sGmVg8A"><tr data-page-node-id="gcI2EcwTz06KDeDehtNeQr"><th data-page-node-id="WLS37lUeKW7TrK1PWRtfec">函数</th><th data-page-node-id="WXQoxPMinBaHBTUFKIMuJG">作用</th></tr></thead>
+        <tbody data-page-node-id="EEtnZEoaYuEr9g0MFnEESc">
+          <tr data-page-node-id="toaeGS520Du6GEWwV03Gac"><td data-page-node-id="5mZYLpUZ37HBRrwTUoNtJ0"><code data-page-node-id="8ZqjCyNi5bEnntTF82pMhx">resolve_api_key(provider)</code></td><td data-page-node-id="8sJyCpJLCnIsARa5RaFrqz">取 Key：界面填的优先，没填回退环境变量</td></tr>
+          <tr data-page-node-id="Lu3GuMXtlEPmTNQesTweQ4"><td data-page-node-id="frmV4CuxhtuADVi08EX87P"><code data-page-node-id="vjFboANDTNrTnENAo0b6sk">build_client(provider, max_retries=None)</code></td><td data-page-node-id="xNvb7F1E5ZTeZvYTX8HhMw">建 OpenAI 客户端（<b data-page-node-id="b4HCQZHlnKJFv7Wj5Jtk4x">必须显式传 base_url</b>）</td></tr>
+          <tr data-page-node-id="ETTaq8BJ5hGRWv6nRXPVJk"><td data-page-node-id="YWM3UU2PV06fqnd51RmSeW"><code data-page-node-id="MuB7beyiSOZg3II3p8Iqgw">chat(provider, messages, system_prompt=None, ...)</code></td><td data-page-node-id="SYyWTyggw73QmqXPn2pxWq">非流式，返回纯文本</td></tr>
+          <tr data-page-node-id="ZoHXs37EkfANnBkbb0U5CC"><td data-page-node-id="mkgwYDcEs5QSZKKVNYGdPI"><code data-page-node-id="54Y0iL5OC5ey7Ui7fP02jC">stream_chat(provider, messages, system_prompt=None, ...)</code></td><td data-page-node-id="nXgzfr7Bi1PzYL7LjsEoWo">流式，逐字 yield</td></tr>
+        </tbody>
+      </table>
+
+      <h4 data-page-node-id="ZojQjbD8RMxU2QVfSnYMxh">细节 ① system_prompt 单独抽成参数</h4>
+      <p data-page-node-id="aIyZnbU5LYI47Jr1RBpaOQ">而不是让调用方自己往 list 里塞 —— 这样"system 永远排最前面"这条格式规则<b data-page-node-id="xGLEddCVfL4HJ9lxGLauYO">只存在于一个地方</b>。</p>
+      <div class="code after" data-page-node-id="8dD3ebAxKpxpwblQzEV7aH">
+        <div class="tag" data-page-node-id="4GQbG2X81rRcLaiVrMlYOr"><span data-page-node-id="kYH0eB3SGcrbFeArYIt05J">llm.py · _build_payload()</span></div>
+<pre data-page-node-id="2WxAgeZV9XiM7MBOmt70Ip">def _build_payload(messages, system_prompt=None):
+    payload = []
+    if system_prompt:
+        payload.append({"role": "system", "content": system_prompt})   # 永远排第一
+    payload.extend(messages)
+    return payload</pre>
+      </div>
+      <div class="box why" data-page-node-id="8IHKibSQ0MtIDhvVdMqNIS">
+        <span class="t" data-page-node-id="eqCYLXlnWeyej0Vfajk9In">这对应 LangChain 里的什么</span>
+        <code data-page-node-id="Dwunq1kMg3hauXEA4ZKA9z">ChatPromptTemplate.from_messages([("system", ...), MessagesPlaceholder("history"), ("human", ...)])</code>
+        —— 那里也是把 system 和 history 分开声明的，同一个道理。
+      </div>
+
+      <h4 data-page-node-id="5Hka7OKVUBTmsFDKzsrznP">细节 ② 流式要防「空 choices」</h4>
+      <div class="code after" data-page-node-id="jDlqjHolpGH73t3m5tvOqn">
+        <div class="tag" data-page-node-id="mlmv2sHzXnq4G3sKqfDZms"><span data-page-node-id="bsdNjhugL9xSbrwBr86Um2">llm.py · stream_chat() 关键 3 行</span></div>
+<pre data-page-node-id="1ACyeyeoWp1LLdkdHW7XLA">for chunk in response:
+    if not chunk.choices:      # ← 没有这一行，会 IndexError
+        continue
+    content = chunk.choices[0].delta.content
+    if content:
+        yield content</pre>
+      </div>
+      <div class="box why" data-page-node-id="tW9SshQjsFE5HrSDlOF3Wh">
+        <span class="t" data-page-node-id="WIpRMcTX3soiQ3o8Y0FUUc">为什么要这一行</span>
+        部分厂商在流末尾会多发一个<b data-page-node-id="In9Df77VK4g5WIUUntvJ7k">只有用量统计、没有 choices</b> 的 chunk，直接取 <code data-page-node-id="ac0HhOY8UgaTDSheBFj1ju">chunk.choices[0]</code> 就崩。
+      </div>
+
+      <h4 data-page-node-id="Qem6aO5tWlYUF5YEsY7MiL">细节 ③ max_retries 是客户端级参数</h4>
+      <div class="code after" data-page-node-id="vzbIxpOGBx9oobCpQugYeW">
+        <div class="tag" data-page-node-id="mk42bg31p2v9vXPdwsPBjj"><span data-page-node-id="359JEZJMF8RvKXT7ao8mF7">llm.py · build_client()</span></div>
+<pre data-page-node-id="M90KOFXGcZfXLkxpJsCKC6">def build_client(provider, max_retries=None):
+    from openai import OpenAI
+    kwargs = {"api_key": resolve_api_key(provider), "base_url": provider.get("base_url")}
+    if max_retries is not None:
+        kwargs["max_retries"] = max_retries      # 只能在客户端设，不能从 create() 传
+    return OpenAI(**kwargs)</pre>
+      </div>
+      <div class="box why" data-page-node-id="RzZ5aLlnzt4LEet0dIMVnz">
+        <span class="t" data-page-node-id="DysPymuWM08C6xs7fZepZf">为什么留这个口子</span>
+        SDK 默认失败重试 2 次。聊天时重试是好事（网络抖一下能自愈），
+        但「记忆抽取」是顺手做的事，失败一次要白等 10 秒 —— 见 §5 的实测数据。
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 3.3 memory.py ===== -->
+  <div class="filecard" data-page-node-id="sGaVXzhFtH54CPMnVApD1X">
+    <div class="head" data-page-node-id="QVxU4euCGEez9PdNQx6LH4">
+      <span class="name" data-page-node-id="J3s4J3dJDCLPTFOZBUCd0S">memory.py</span>
+      <span class="pill new" data-page-node-id="bSE8vIR0sHcDe4sNDY8Jnw">🆕 新增文件</span>
+      <span class="sub" data-page-node-id="7XkJRlhZ24SSt6NQE3sSf0">长期记忆存储层 · 179 行</span>
+    </div>
+    <div class="body" data-page-node-id="HhbOeE6vRxuhlRGB9SzMq5">
+      <div class="box key" data-page-node-id="TPCEMfuHJtNHWW2SJeozmw">
+        <span class="t" data-page-node-id="VAyyI0cHV98faKln522aQ8">一句话定位</span>
+        这个文件就是<b data-page-node-id="zCB1iwHR1CT8LKxmymX7K4">把今天的 <code data-page-node-id="KwwY0fgAMlOAJbutTM6gF8">FileChatMessageHistory</code> 换个存储内容再写一遍</b>。
+      </div>
+
+      <table data-page-node-id="KuIOOWAcPjLPrRHGHCG3nv">
+        <thead data-page-node-id="1M9J2dc7bPuRKn5fvSGyxq"><tr data-page-node-id="kxLmKxV0cvwP7vSXGeb2jh"><th data-page-node-id="e6gELLddWx5AxYK1jNfwFY">你手写的 <code data-page-node-id="DhVcnfY3zy35rPASEpKNWo">FileChatMessageHistory</code></th><th data-page-node-id="dRQ2XjHAL5wx5Fhyl54znH">这里的 <code data-page-node-id="u1m4XFLKxbBlYHutguEyBd">CompanionMemory</code></th></tr></thead>
+        <tbody data-page-node-id="ocZIr4LQqNgH0QOTVhEPPY">
+          <tr data-page-node-id="m9S1Astq1plRdQJxIt4emn"><td data-page-node-id="mdLP4ekxgSg8vfd2qMH88Y"><code data-page-node-id="v6jPMXD62TEfjRFTTAD3cC">__init__(self, session_id, storage_path)</code></td><td data-page-node-id="6BZFB2CkFjNUpX8MxEyt4M"><code data-page-node-id="y1e0PN0UO9SUVc4XDMskHb">__init__(self, companion_id)</code></td></tr>
+          <tr data-page-node-id="QrM8UnMhZPpFNaTyHLW8n9"><td data-page-node-id="I4irXK8eaPJzhf5BJI59t3"><code data-page-node-id="oJCfidj7SLwF3oSuuIGJiw">os.path.join(storage_path, session_id)</code></td><td data-page-node-id="TpzGPLIKsfRdwOFaA1ivMw"><code data-page-node-id="kCPSWTMsvmSCn2dLLlOU7N">os.path.join(MEMORY_DIR, f"{companion_id}.json")</code></td></tr>
+          <tr data-page-node-id="HpfmYeBb48WNcjvpg8M1vB"><td data-page-node-id="wS8J6GkIlFHj87GhdpBIQV"><code data-page-node-id="tBbGTOSGXD1LrfSvnLEnZo">@property messages</code> → 读盘还原消息</td><td data-page-node-id="G3CImGuwlWE5td1Qjr9CPr"><code data-page-node-id="BCyMCMgOS6N99N35d6EifG">@property facts</code> → 读盘还原事实</td></tr>
+          <tr data-page-node-id="L53lzA5ZvH1NoqIl2G9xLD"><td data-page-node-id="f01nAHCJ6T2XXuy6qOVPU9"><code data-page-node-id="QsQuxRYWAuGz4J60PVuOua">add_messages()</code> → append 后写盘</td><td data-page-node-id="zPim5trkBk9IQGrMXZbk3v"><code data-page-node-id="ATuPkeMDB23LgIA1BTajWV">add()</code> → <b data-page-node-id="pwfMWbjaXfby3BnPgm2LMu">去重后</b>写盘</td></tr>
+          <tr data-page-node-id="GShNFG0VO5gECsz7WiUyhM"><td data-page-node-id="Y85plDSxwObfF8iywn4q3e"><code data-page-node-id="2npnKmdDJuhRtWRUnr2I1w">clear()</code></td><td data-page-node-id="TNdackTyYOjdXB5UQQFHoX"><code data-page-node-id="UCBBDPUwT5QQyYhqwNZ7K1">clear()</code></td></tr>
+          <tr data-page-node-id="yxnpOB96bzIa4Zrd0YmLmE"><td data-page-node-id="zyEMBeoIirn8a1WQaXqdSZ">—</td><td data-page-node-id="KS6f8e1Kyr6wMO9WodqbCu"><code data-page-node-id="vQObbyHPzSelotUSKBm0IE">to_prompt_block()</code> ← <b data-page-node-id="Vzk3cziJONBOlw66DBq6Hu">多出来的</b>：拼成能塞进 system prompt 的文本</td></tr>
+        </tbody>
+      </table>
+
+      <h4 data-page-node-id="8sRgxNP6Lhxtf11sg8UzKL">组件 A · <code data-page-node-id="QHtpJYwrdwDvb4HSGTBYhF">EXTRACT_PROMPT</code>（给模型看的抽取指令）</h4>
+      <div class="code after" data-page-node-id="aMRYCw226Sg82BlT9pOxNv">
+        <div class="tag" data-page-node-id="WIwReJqk14vwMwLQqZ9msw"><span data-page-node-id="XplQA1F60YwSF5wcNpCMxq">memory.py · 抽取提示词</span></div>
+<pre data-page-node-id="uiED9PhaFmZhjEKi4TAy7G">EXTRACT_PROMPT = """你是记忆提取器。请从下面这段对话里，找出【值得长期记住的、关于用户的稳定事实】。
+
+要记：名字与称呼、职业、所在地、家人与宠物、长期爱好、明确的喜好与禁忌、正在长期做的项目。
+不要记：一次性的闲聊内容、助手自己说过的话、临时情绪、随时会变的小事。
+
+只输出 JSON 数组，不要解释，不要 markdown 代码块。没有值得记的就输出 []。
+示例：["用户叫李永康", "用户养了一只叫团子的猫", "用户不喝咖啡"]"""</pre>
+      </div>
+      <div class="box why" data-page-node-id="jXrdIK5RhBkTyeG6H9MboQ">
+        <span class="t" data-page-node-id="rYk72ESOvtAxdimiVFLEel">三个设计要点（都踩过坑）</span>
+        <b data-page-node-id="Lm7eGg16oxRqJ0GeLMKA6s">① 正反两面都举例</b> —— 只说"记什么"，模型会把闲聊也记进去。<br data-page-node-id="W6mFY5SDyX5N10bNjITYAC">
+        <b data-page-node-id="HU68ryiZGTuC9XPLKv17hq">② 强制 JSON 数组 + 明说不要代码块</b> —— 很多模型习惯性包一层 <code data-page-node-id="AtlozltSDmE1AfvYUjQGMg">```json</code>，必须在提示词里先堵死。<br data-page-node-id="5ou7GSYowjzbcFIwpCH7zg">
+        <b data-page-node-id="1FM2eU8QBjcgvGqCPDWEgy">③ 给它"什么都不记"的正当选项 <code data-page-node-id="UdFGGdQ8sMVerXHdwufjgm">[]</code></b> —— 否则它会硬凑几条出来。
+      </div>
+
+      <h4 data-page-node-id="izHGyl6HKwbxSyzkqQQcaE">组件 B · <code data-page-node-id="79YqopnQXIaiOdLkhpOHqO">parse_extraction()</code> 兜住模型不听话</h4>
+      <div class="code after" data-page-node-id="SBsATxAFAr8xBwNEySHQEr">
+        <div class="tag" data-page-node-id="yh1ic6NosabF8M41KgUCL7"><span data-page-node-id="gfbesXngZgisIoPqFpUAK6">memory.py · 解析函数</span></div>
+<pre data-page-node-id="3jNirBqOzukC8EBSnn9pBh">def parse_extraction(raw: str) -&gt; list:
+    import json
+    if not raw:
+        return []
+    text = raw.strip()
+
+    # 1. 剥掉 markdown 代码块
+    if text.startswith("```"):
+        text = text.split("\n", 1)[-1]          # 去掉第一行的 ```json
+        text = text.rsplit("```", 1)[0]         # 去掉结尾的 ```
+
+    # 2. 只取第一个 [ ... ] 区间（防止模型前后加话）
+    start, end = text.find("["), text.rfind("]")
+    if start == -1 or end == -1 or end &lt; start:
+        return []
+    text = text[start:end + 1]
+
+    # 3. 解析
+    try:
+        data = json.loads(text)
+    except Exception:
+        return []
+    if not isinstance(data, list):
+        return []
+    return [str(x).strip() for x in data if str(x).strip()]</pre>
+      </div>
+      <div class="box key" data-page-node-id="pOkUXlUUcR5t6JyWbAj5Ba">
+        <span class="t" data-page-node-id="0bGeXhudDoByGP6DBIPuK6">核心原则</span>
+        <b data-page-node-id="cI2b1vldIHZw0FrEGpYppj">解析失败返回空列表，绝不抛异常。</b>记忆是锦上添花，不该因为它把聊天带崩。
+      </div>
+      <p data-page-node-id="efvmbo8b8u5nReRmokDAyz">实测 8 种模型返回都能兜住：</p>
+      <table data-page-node-id="3gC1GWcL2XPFHbBuyOeHMA">
+        <thead data-page-node-id="pF7xL1OrCgv2w1gSAYG9HQ"><tr data-page-node-id="wc9qgsKfVNyC3O6XR2QFFB"><th data-page-node-id="iAyHehxqS47zlLeaFxI0T6">模型返回</th><th data-page-node-id="jCJ7rSeCqsQScHFa0c3rbk">解析结果</th></tr></thead>
+        <tbody data-page-node-id="uIbL8DslqOxMM3g4oKZVK6">
+          <tr data-page-node-id="hQQga65TvndMwAYFhAD45T"><td data-page-node-id="5v5JZR8Gv5xicc90lvs2MT"><code data-page-node-id="CrwYIyhnwrRVhtsotQogky">["用户叫李永康", "用户养猫"]</code></td><td data-page-node-id="8DqjB1zPs70gj8f0SQ0ufl">✅ 正常</td></tr>
+          <tr data-page-node-id="GVziw0TP0DfdTDRlifu4Vl"><td data-page-node-id="HOELfD6DsSptC94FLtvWUA"><code data-page-node-id="jwkz7nJcM8qLaPdqvNNaXz">```json\n["用户叫李永康"]\n```</code></td><td data-page-node-id="MtKRa9X5iDHkpSitGSiL7K">✅ 剥掉代码块</td></tr>
+          <tr data-page-node-id="RBDo9D8vZJobDev6Fk1fWe"><td data-page-node-id="KtmANufCeb2yRfriyP5IHq"><code data-page-node-id="JYJ3T6i2PcNgUIabDJLJMy">好的，提取结果如下：["用户叫李永康"] 希望有帮助</code></td><td data-page-node-id="GRQVa6XSYYoFvo1cyDfdSG">✅ 只取 <code data-page-node-id="ufDFQhycrFEPWJIEN8wfT8">[ ... ]</code> 区间</td></tr>
+          <tr data-page-node-id="42aT9Li1Qqgz4AXb5EnENt"><td data-page-node-id="h96fAKaaxROK1eZbSzb0gb"><code data-page-node-id="Hcl2nLIXXOjfHZoHcCRAZQ">[]</code></td><td data-page-node-id="6eHADYZKQFYFY57Rk6Ij6u">✅ 空列表</td></tr>
+          <tr data-page-node-id="cfuVqQRRd9a4bKHzi46lpG"><td data-page-node-id="lkEtKtPxSsutym9PQKWiWU"><code data-page-node-id="DrZyoicb3fS0G6SHuPuzNI">没有值得记住的信息</code></td><td data-page-node-id="SWxlqhF0NAODzVHLZ5kWkB">✅ <code data-page-node-id="9rzaXLoQh9SVMvkkDoVFdP">[]</code></td></tr>
+          <tr data-page-node-id="PoEqlhG2ysqxbMwTqHbDfb"><td data-page-node-id="tBJvRjjVRQldbFVkcBeHvf"><code data-page-node-id="MFD4ZSwia3RDW1pI2Gd1Iz">{"name": "李永康"}</code></td><td data-page-node-id="6AJ6O8AJOXqYAsDrqLpKuR">✅ <code data-page-node-id="lgziHhFJ5I0BBCN3ePGzs9">[]</code>（不是数组）</td></tr>
+          <tr data-page-node-id="HsSPHVdNSwjkTDHGvnGEXL"><td data-page-node-id="HyzC66i0edC8EqZjVoXTRt"><code data-page-node-id="D4xF0dF3JlaqRBtqBVuAJd">""</code></td><td data-page-node-id="INT4N4D8jcLHybGoQkdW14">✅ <code data-page-node-id="S9a4wNsTB6x1ZoUF85FU0h">[]</code></td></tr>
+        </tbody>
+      </table>
+
+      <h4 data-page-node-id="G0Dzxk27XnrP5IqXqTpW1Y">组件 C · <code data-page-node-id="cFlOLlCaBx9gxps3HbjFoT">CompanionMemory</code> 类</h4>
+      <div class="code after" data-page-node-id="G6yBoCjdEq0ou9FV4Ecgyh">
+        <div class="tag" data-page-node-id="6yVdudfPbvsDeOCwrxABEo"><span data-page-node-id="qak8t9p2lF5XZ9kcHWCrhX">memory.py · 类骨架</span></div>
+<pre data-page-node-id="GJ7suouaSRP6rNqJflY7QF">class CompanionMemory:
+    def __init__(self, companion_id: str):
+        self.companion_id = companion_id
+        self.file_path = os.path.join(MEMORY_DIR, f"{companion_id}.json")
+
+    @property
+    def facts(self) -&gt; list:                     # 读：每次现读盘
+        return storage.read_json(self.file_path, []) or []
+
+    def add(self, texts, session_id=None) -&gt; int:  # 写：去重后写盘
+        ...
+    def remove(self, fact_id: str) -&gt; None:        # 忘掉一条
+        ...
+    def clear(self) -&gt; None:                       # 忘掉全部
+        storage.delete_file(self.file_path)
+
+    def to_prompt_block(self, limit: int = 30) -&gt; str:   # 注入：拼成 prompt 片段
+        ...</pre>
+      </div>
+
+      <h4 data-page-node-id="mOQV1RjFNHQKnc2gdfyz0i">关键点 ①：<code data-page-node-id="3lZdXoh1iJ5KxgnzTh73TN">@property</code> 每次现读盘，不做内存缓存</h4>
+      <div class="code after" data-page-node-id="Emit1aJR5x6XbHr4ee7G6q">
+        <div class="tag" data-page-node-id="i9ZcDEOLNkM3iB7kZQSSoU"><span data-page-node-id="g5qfNXrtw0eCr3muUObYGw">memory.py · facts</span></div>
+<pre data-page-node-id="ORGZLMzFDr2Ukh9xALDgj6">@property
+def facts(self) -&gt; list:
+    return storage.read_json(self.file_path, []) or []</pre>
+      </div>
+      <div class="box why" data-page-node-id="OWbQoBseeG7wj5CUXdrQ3B">
+        <span class="t" data-page-node-id="gjd1wcEPvgMKh9YVDFBmiM">为什么和你写的 <code data-page-node-id="cgBcHtoCakCLAXzYwypTgR">messages</code> 一个思路</span>
+        <b data-page-node-id="3MAu7m1lAXpx61JeNFe1SB">状态的唯一来源是磁盘</b> → 不可能出现"内存里改了、文件里没有"的不一致。<br data-page-node-id="w2jdAh818ySfoyfoaaMxix">
+        反例：如果缓存进 <code data-page-node-id="XbhF85nZvzKmHv40Ct9wzv">self._facts</code>，就会出"刚记住的事这一轮用不上、要等下次重启"这种隐蔽 bug。
+      </div>
+
+      <h4 data-page-node-id="1YVg2IznRxxJqGuw2qKfUV">关键点 ②：<code data-page-node-id="e35vy4Z2bWQSR6S1smvWPp">add()</code> 必须去重</h4>
+      <div class="code after" data-page-node-id="u7mGb6J73zXTdaBKdMuzJu">
+        <div class="tag" data-page-node-id="p1pe1udVib3rwfW8dBYEbr"><span data-page-node-id="qBuK53lruj5NEs1VvQMavX">memory.py · add() 去重核心</span></div>
+<pre data-page-node-id="Wt70ze3MUDQOolEWiROvA2">existing = self.facts
+seen = {(f.get("text") or "").strip() for f in existing}
+added = 0
+for t in texts or []:
+    t = (t or "").strip()
+    if not t or t in seen:
+        continue
+    existing.append({
+        "id": uuid.uuid4().hex[:8],
+        "text": t,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "session_id": session_id,      # 从哪个会话学来的（方便追溯）
+    })
+    seen.add(t)
+    added += 1
+if added:
+    storage.write_json(self.file_path, existing)
+return added</pre>
+      </div>
+      <div class="box why" data-page-node-id="pMAg0xpV2vTK0wgHxGGqEy">
+        <span class="t" data-page-node-id="DAW1SCEZZ4NAjwEg7Rk9PJ">为什么</span>
+        每轮对话都抽一次，模型<b data-page-node-id="axQZMqyFgW2oNCgZApD0PH">很容易反复抽出同一件事</b>。不去重的话「用户叫李永康」会被记一百遍。
+      </div>
+
+      <h4 data-page-node-id="fKAfU5l5AwkC8QjfKF18Zx">关键点 ③：<code data-page-node-id="d012ZEjloBkFmvCrARvdYf">to_prompt_block()</code> 要限条数</h4>
+      <div class="code after" data-page-node-id="TBVM3pOfiSDa7vXDbiyeXB">
+        <div class="tag" data-page-node-id="RBKUhfKIwWJzFHlfIhy9rS"><span data-page-node-id="zzywr6N5jimlaHShuQEZXo">memory.py · 注入文本</span></div>
+<pre data-page-node-id="PDymuFQtNmUyCceBzsjgu7">def to_prompt_block(self, limit: int = 30) -&gt; str:
+    facts = self.facts[-limit:]          # ← 只取最近 30 条
+    if not facts:
+        return ""
+    lines = "\n".join(f"- {f.get('text', '')}" for f in facts)
+    return (
+        "\n\n【你记得关于 TA 的事】\n"
+        f"{lines}\n"
+        "像老朋友一样自然地把这些用上，但不要生硬地逐条复述。"
+    )</pre>
+      </div>
+      <div class="box why" data-page-node-id="82pqoVLapOJH7XgB2WXg0O">
+        <span class="t" data-page-node-id="QcQq6iPSNDDLmWu5Oc2MtS">为什么要 <code data-page-node-id="DNsxEEy1mQhoAmFHLIb41a">limit</code></span>
+        记忆条数会随时间无限增长，全部塞进 system prompt 迟早烧光 token。
+        取最近 <code data-page-node-id="rNsF2EfSd7gr2OLkVrhj5N">limit</code> 条 —— 越近的记忆通常越相关。
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 3.4 companion_manager.py ===== -->
+  <div class="filecard" data-page-node-id="e74HaeuJ2vgnLEtNKaNhpP">
+    <div class="head" data-page-node-id="pVQD1fnlcwb0rtrhHKzCAk">
+      <span class="name" data-page-node-id="fb0B1xiErNCgDgiLeXqiX5">companion_manager.py</span>
+      <span class="pill edit" data-page-node-id="h4CqvBMyfgv8SXIFoj4g6D">改 · 6 处</span>
+      <span class="sub" data-page-node-id="arn2K4SUF6nnXFlyFlnGhN">本次改动最多的文件</span>
+    </div>
+    <div class="body" data-page-node-id="p0tYlco6ZJZDt6ETgEOBDC">
+
+      <h4 data-page-node-id="iqKJJfiuyURJWE2XpyCY86">① 顶部 import 区</h4>
+      <span class="loc" data-page-node-id="hrhQ5WMsqLnGS8K0MBC0kU">📍 文件最上面的 import 段</span>
+      <div class="code before" data-page-node-id="CMJZ3mr5Kxd3ln1Ez0sdOM">
+        <div class="tag" data-page-node-id="SjmmdkrYXihKzmV7IFWZOw"><span data-page-node-id="tvcAXPfvp6U7HW4Tars1DP">改前</span></div>
+<pre data-page-node-id="AARwWH7XlwPwk35ueuUrkj">import os
+import uuid
+from datetime import datetime
+
+import storage
+from config import (
+    ...
+    PROVIDER_PRESETS,          # ← 这行也要删
+    ...
+)</pre>
+      </div>
+      <div class="code after" data-page-node-id="bs59sQ7ua0OE3wmiDNNS2I">
+        <div class="tag" data-page-node-id="ocan8dlgyEXZe2lPIiqyBe"><span data-page-node-id="a104FHYMVgwchSzWB4KyYa">改后</span></div>
+<pre data-page-node-id="9mkT3P3CAh9Mi5O0eSkYf5">import os
+import uuid
+from datetime import datetime
+
+import llm
+import storage
+from memory import CompanionMemory, EXTRACT_PROMPT, parse_extraction
+from config import (
+    ...
+    # PROVIDER_PRESETS 删掉 —— 它唯一的用处（取 Key）已经搬去 llm.py
+)</pre>
+      </div>
+      <div class="box why" data-page-node-id="ugxurC03H32S84IVi4AXHs">
+        <span class="t" data-page-node-id="elSX57X4pnk7rMuQBAhjmU">为什么 <code data-page-node-id="DcOe0rovH9OBkbf7XHjHuk">PROVIDER_PRESETS</code> 要删</span>
+        它在这个文件里<b data-page-node-id="8yQIhVRa1wmCPDzNC6jB8O">唯一的用途</b>就是 <code data-page-node-id="wKlt1KnL7K17zlJvla0n6N">resolve_api_key()</code> 里查环境变量名。
+        那段逻辑搬去 <code data-page-node-id="hcgIHdo2gs4n5n5fJ5aZmG">llm.py</code> 了，这个 import 就成了死引用 —— 留着会让人以为业务层还管厂商预设。
+      </div>
+
+      <h4 data-page-node-id="HjNVDJ7lvZPNH0xYcXHCkx">② 删掉 <code data-page-node-id="OpsCOcP9oUfaCCciTDOyMW">resolve_api_key()</code> 和 <code data-page-node-id="jYQ1Z6804jwAf2rdfsjvaV">build_client()</code></h4>
+      <span class="loc" data-page-node-id="IHkD6fTAfubZEXqRA62KNa">📍 原第 92–112 行，整段删除（-21 行）</span>
+      <div class="code before" data-page-node-id="pt7xuY7K3lftv6HFdTHdoi">
+        <div class="tag" data-page-node-id="Liiw3omJWjkYLI2w3HtPWT"><span data-page-node-id="dhE3DwbcW7DohYgCA22Fhq">删掉的两个方法（共 21 行）</span></div>
+<pre data-page-node-id="ngg0FS5tNdHiMCTVLFGVVb">    @staticmethod
+    def resolve_api_key(provider):
+        """取 Key：优先界面里填的；没填就回退到同名环境变量（兜底，不算白配）"""
+        ...
+    def build_client(self, provider):
+        """按 provider 建 OpenAI 客户端。..."""
+        ...</pre>
+      </div>
+      <div class="code after" data-page-node-id="6mYg3hDK05Ryt1d0h4fEim">
+        <div class="tag" data-page-node-id="zTnvJRce97pZLRA1dUrbtj"><span data-page-node-id="f2Tx24p1h8RScFliAtdZ1w">改后：换成一行注释说明它搬去哪了</span></div>
+<pre data-page-node-id="EF3wTYWOWEJ1WKZXgjyuy1">    # 注意：原本这里的 resolve_api_key() + build_client() 已整体搬去 llm.py。
+    # 从此业务层不再直接碰 openai SDK —— 想换厂商 / 加重试超时 / 接 Function Calling，
+    # 都只改 llm.py 一处，不会在这里和 main.py 之间发散。</pre>
+      </div>
+      <div class="box why" data-page-node-id="XoGAJ3Sv02f57VX40DaD4q">
+        <span class="t" data-page-node-id="enlaH4bqncSNKvrRHsihYt">为什么留注释而不是直接删干净</span>
+        以后翻到这儿的人（包括两个月后的你）会问"原来建客户端在哪？"——
+        一行注释就说清了去向，省一次全局搜索。
+      </div>
+
+      <h4 data-page-node-id="ETogoL1BlS78xzdaPeq3LS">③ <code data-page-node-id="SoqNJ7yVqIFAfuiVsm2bgX">generate_ai_title()</code> 改用 <code data-page-node-id="DAk85og0ojYrwt5lApNkTR">llm.chat()</code></h4>
+      <span class="loc" data-page-node-id="HFtJkXz6Zzc75XzervubtH">📍 文件末尾附近</span>
+      <div class="code before" data-page-node-id="RHfVjiEGjCrU1wpCb3ngak">
+        <div class="tag" data-page-node-id="V7qV2y5VcYUHdqJfTMETPO"><span data-page-node-id="6lVVFytEOENAeqajWyCIqT">改前（21 行，SDK 裸露）</span></div>
+<pre data-page-node-id="FaluDmuQWCK7VkvGqqBWrt">    def generate_ai_title(self, provider, messages):
+        if not provider:
+            raise ValueError("这个伴侣还没绑定模型服务")
+        client = self.build_client(provider)
+        convo = "\n".join(...)
+        resp = client.chat.completions.create(
+            model=provider.get("model"),
+            messages=[
+                {"role": "system", "content": "你是标题生成器。..."},
+                {"role": "user", "content": convo},
+            ],
+            stream=False,
+        )
+        return (resp.choices[0].message.content or "").strip().strip("《》\"'。.、 ")</pre>
+      </div>
+      <div class="code after" data-page-node-id="PlF61nasYqr0ysTlbhrBic">
+        <div class="tag" data-page-node-id="zyNYVXYgR4F3E1hWwjYMsV"><span data-page-node-id="3zNBcH071DfsNuy9Ztqm2W">改后（11 行）</span></div>
+<pre data-page-node-id="D87SWVMXRAAtlHJ686pL1x">    def generate_ai_title(self, provider, messages):
+        if not provider:
+            raise ValueError("这个伴侣还没绑定模型服务")
+        convo = "\n".join(
+            f"{'用户' if m['role'] == 'user' else '伴侣'}：{m.get('content', '')}"
+            for m in messages[:6]
+        )
+        title = llm.chat(
+            provider,
+            [{"role": "user", "content": convo}],
+            system_prompt="你是标题生成器。用不超过 12 个字概括这段对话的主题，"
+                          "只输出标题本身，不要引号、不要标点、不要解释。",
+        )
+        return title.strip("《》\"'。.、 ")</pre>
+      </div>
+      <div class="box warn" data-page-node-id="0TSnwvnLU2hy84gdMBZwdx">
+        <span class="t" data-page-node-id="XQVWZcadH4muEdn3JPDKv7">注意最后一行</span>
+        <code data-page-node-id="359PMtAA36XKZmFStgQlre">llm.chat()</code> 内部<b data-page-node-id="I5gFKoM4BEYWJKRi5SMdXf">已经 <code data-page-node-id="HekBuHipIBNws50inf9N8b">.strip()</code> 过了</b>，这里只需要再剥掉标点。
+        不要重复 `.strip()` 也不要以为它没去空白。
+      </div>
+
+      <h4 data-page-node-id="IVZV5t3R0e03EU6WXCpHmP">④ <code data-page-node-id="6rbIThDv8MVtilOtRbvWLE">build_system_prompt()</code> 加长期记忆注入</h4>
+      <span class="loc" data-page-node-id="DSRNQOxHXDyy9TU7aFTzey">📍 方法末尾，<code data-page-node-id="sKXU4M41vcoDs1b67Z5ST0">return prompt</code> 之前</span>
+      <div class="code after" data-page-node-id="PNS2NPNQhkBshsmT0bYCa6">
+        <div class="tag" data-page-node-id="Pqx070E5z65BFJJkKS5gkn"><span data-page-node-id="n0baAyZ26g9Hw8C23sKFVo">改后（+6 行）</span></div>
+<pre data-page-node-id="Y2BubDkojAbBBhQhvRlX6N">        if self.user_has_profile():
+            prompt += (
+                f"\n\n【正在和你聊天的人】对方的名字叫「{self.user_nickname()}」。"
+                f"在合适的时候可以自然地称呼 TA 的名字，但不必每句话都叫。"
+            )
+
+        # ── 长期记忆注入（今天的重点）──
+        # 读的是 data/memory/&lt;伴侣id&gt;.json，与当前会话无关 → 所以换会话也还记得。
+        mem = self.memory(companion.get("id"))
+        if mem:
+            prompt += mem.to_prompt_block()
+
+        return prompt</pre>
+      </div>
+      <p data-page-node-id="59nPBFIVkCjkk3B9uLNXE0">顺带把 docstring 从「两件事」改成「三件事」。</p>
+      <div class="box why" data-page-node-id="JR96hyAVtUF2UBPDRNGUA4">
+        <span class="t" data-page-node-id="WWiYYDiCFYHghJn94CUJm6">为什么必须"现拼"而不是缓存下来</span>
+        记忆文件每轮对话后都会新增。现读现拼 → <b data-page-node-id="tHtDeig3ORtUBVHP9WNxYR">刚记住的下一轮立刻生效</b>，
+        不需要重启、不需要额外同步逻辑。<br data-page-node-id="TTFzxTBLKsENBlm59tIlcP">
+        （这和原来昵称那段是同一个道理 —— 那段注释里已经写过：昵称是全局资料，写进伴侣数据就会出现"改一次名要改所有伴侣"的问题。）
+      </div>
+
+      <h4 data-page-node-id="feX1x8wksJNAWYuU9g43Uw">⑤ 新增长期记忆业务方法（一整段，5 个方法）</h4>
+      <span class="loc" data-page-node-id="Ir9F8LX5iLSSHl1D7VkDvy">📍 <code data-page-node-id="04nEGJetD0IARBPrInnpDK">build_system_prompt()</code> 之后、<code data-page-node-id="EzaztObDdYKv97zeyFAvHa"># 会话 sessions</code> 之前</span>
+      <div class="code after" data-page-node-id="bpQ21RC5kmRCZcTag7vSTM">
+        <div class="tag" data-page-node-id="FtJVk80MSLbekunurYcNTU"><span data-page-node-id="k4kwUlRj2mSs1yCo4GYwV5">改后 · 新增段落</span></div>
+<pre data-page-node-id="Sc6y6EvCkaB6a4euFe9oYW">    # ══════════════════════════════════════════════════
+    # 长期记忆（跨会话）
+    # ══════════════════════════════════════════════════
+    # 和「会话」的区别：
+    #   会话记的是「这次聊了什么」—— 按 session_id 存，换个会话就没了；
+    #   长期记忆记的是「你是谁」—— 按伴侣存，换会话、关程序、过一周都还在。
+    def memory(self, companion_id=None):
+        """拿到某个伴侣的记忆对象；没有伴侣时返回 None（界面层不用自己拼路径）"""
+        cid = companion_id or self.current_companion_id
+        return CompanionMemory(cid) if cid else None
+
+    def memory_facts(self, companion_id=None):
+        """读当前伴侣的全部长期记忆（侧边栏展示用）"""
+        mem = self.memory(companion_id)
+        return mem.facts if mem else []
+
+    def forget_fact(self, fact_id, companion_id=None):
+        """忘掉一条（侧边栏的 🗑️）"""
+        mem = self.memory(companion_id)
+        if mem:
+            mem.remove(fact_id)
+
+    def forget_all(self, companion_id=None):
+        """全部忘掉"""
+        mem = self.memory(companion_id)
+        if mem:
+            mem.clear()
+
+    def remember_from_exchange(self, provider, companion, messages, keep_last=6):
+        """从最近几轮对话里抽取「值得长期记住的事」写进长期记忆，返回新增条数。"""
+        if not provider or not companion or not messages:
+            return 0
+        recent = messages[-keep_last:]
+        convo = "\n".join(
+            f"{'用户' if m.get('role') == 'user' else '伴侣'}：{m.get('content', '')}"
+            for m in recent
+        )
+        try:
+            raw = llm.chat(
+                provider,
+                [{"role": "user", "content": convo}],
+                system_prompt=EXTRACT_PROMPT,
+                temperature=0,        # 抽取要稳定、别发挥
+                timeout=15,
+                max_retries=0,
+            )
+        except Exception:
+            return 0                  # 静默跳过
+
+        mem = self.memory(companion.get("id"))
+        if not mem:
+            return 0
+        return mem.add(parse_extraction(raw), session_id=self.current_session_id)</pre>
+      </div>
+      <p data-page-node-id="Mq26BbEbgT6VmqcLzEEAkv"><code data-page-node-id="zRFYfCxall5d9jtlKlvgUL">remember_from_exchange</code> 的四个设计决定（面试能讲）：</p>
+      <table data-page-node-id="B14eG7x8hV2y6eE0NpVG2w">
+        <thead data-page-node-id="shvE0ohZdOdaSb0NQEBLQ1"><tr data-page-node-id="FbeCa56W2vefypKDDYGPNL"><th data-page-node-id="mPfyh09TRSDXGgOzVopaV1">#</th><th data-page-node-id="bmKH6xvfluF4tP3bBmsDHn">决定</th><th data-page-node-id="s99QHhtB5bJ0dnPqCvv6iv">理由</th></tr></thead>
+        <tbody data-page-node-id="HjMWqJKHD6N2jggATlbcvv">
+          <tr data-page-node-id="UvqUH5Zeiz3Tc16HBPyQTY"><td data-page-node-id="KjTf0eFNw7vSCiK6yt8C2C">①</td><td data-page-node-id="H112TfCEz2bXSZblbMCbew">只喂最近 6 条，不是全部历史</td><td data-page-node-id="1G1kDgRAj4DITFLA6YwzQ6">历史越长越烧 token；"该记住的事"通常就在刚才这几轮；更早的前几轮已经抽过</td></tr>
+          <tr data-page-node-id="JXUOdDZFsb5opABb2iQYGD"><td data-page-node-id="8ohREACqknn46zAdg2ck8o">②</td><td data-page-node-id="zwOQGqEvNEfkDHtFsZGMqR">失败一律静默（<code data-page-node-id="G2D1RLBcNd0gFGGlUTzDxU">except</code> 吞掉）</td><td data-page-node-id="EIVdQ2INa4fFRwclNab5Jp">记忆是锦上添花。网络一抖就失败，绝不能把「聊天」主流程带崩</td></tr>
+          <tr data-page-node-id="FM7fmB7ykPfGXHDjOjSYPJ"><td data-page-node-id="d9r9rlBHk1ssYrK6TC9a7S">③</td><td data-page-node-id="AKYm5PKseeAwt0GPAYXdUD">同步调用，不搞后台线程</td><td data-page-node-id="sTIMkQB4aQKUAg5ruoXOPz">Streamlit 是"全量重跑"架构，没有常驻后台任务的位置。实测正常路径 0.7s，可接受</td></tr>
+          <tr data-page-node-id="n4iHIJ0yOGlAtXUY5DNNmy"><td data-page-node-id="HQAfJF2jhLI3b0XV3JC7mI">④</td><td data-page-node-id="PpH6c3a3EZ5CdHDSQZKJtt"><code data-page-node-id="PlC8PNpQ2JW3XERQP3ZI1A">timeout=15</code> + <code data-page-node-id="YxEOKwKUvljZ7EIJkZtMFZ">max_retries=0</code></td><td data-page-node-id="1oRAMpAzV9jhCTKI0svcpg"><b data-page-node-id="YTmFqqO3aZOoGPgxz0qXxq">这条是实测加出来的</b> —— SDK 默认重试 2 次，抽取一旦失败要白等 10 秒</td></tr>
+        </tbody>
+      </table>
+
+      <h4 data-page-node-id="VA7bhWhHPdoCGNZhRaqC6X">⑥ <code data-page-node-id="jkY8z0RDQWHjpulh71aQ0Q">__init__</code> 加一个开关字段</h4>
+      <span class="loc" data-page-node-id="rGe70b98pvzzc7rEVezjOO">📍 <code data-page-node-id="gY025fqxptjHLKazw2J1ma">__init__</code> 里，<code data-page-node-id="BD3tKW4tNgQrrG5WzM4ZFH">history_length</code> 下面</span>
+      <div class="code after" data-page-node-id="QeomiFHY3V8PC4sqhLMyHu">
+        <div class="tag" data-page-node-id="2uBTwHRI6mYMXfFsB4f8ZF"><span data-page-node-id="YAwdNhNQe71H7MOmRfPOSq">改后（+1 行）</span></div>
+<pre data-page-node-id="RQXA2CgpsxkRJodIkZ0eLM">        self.manage_mode = False       # True = 消息批量管理模式
+        self.history_length = DEFAULT_HISTORY_LENGTH
+        self.memory_enabled = True     # True = 每轮对话后自动抽取长期记忆（侧边栏可关）</pre>
+      </div>
+      <div class="box why" data-page-node-id="DjJ1usFvinKZG8uEt0rHUU">
+        <span class="t" data-page-node-id="DLNjHZEyjADmi4qB1g8Auo">为什么要这个开关</span>
+        自动记忆每轮会多花一次模型调用。留个开关，用户想省钱/调试时能一键关掉，
+        不用去改代码 —— 侧边栏那个 toggle 绑的就是它。
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 3.5 main.py ===== -->
+  <div class="filecard" data-page-node-id="XVzaWpSbUC2i30lLTEswTR">
+    <div class="head" data-page-node-id="OZC0T9joJJ4A3AaAjQjM17">
+      <span class="name" data-page-node-id="0CvAmxp1uuwUj80ocBOWAV">main.py</span>
+      <span class="pill edit" data-page-node-id="8HBTqTYiiGknR9lYKQis0N">改 · 2 处</span>
+      <span class="sub" data-page-node-id="bbARTJPnYkka8C9I2GFMgx">聊天主区</span>
+    </div>
+    <div class="body" data-page-node-id="kjYjiG2qs8tsXXnMeIMCNL">
+      <h4 data-page-node-id="3UhhfpvKkTbieUh4GEqBse">① 顶部加 import</h4>
+      <span class="loc" data-page-node-id="aWpGPk0RnqttJjiJJuYowu">📍 文件顶部</span>
+      <div class="code after" data-page-node-id="UGPeRJjINU57hANn8jtTKm">
+        <div class="tag" data-page-node-id="oEr36uk0QVUwVU52Ui1iSA"><span data-page-node-id="C5bG0vB2QPTcjxkvPx1fKQ">改后（+1 行）</span></div>
+<pre data-page-node-id="QSf1zRHvoeKwAtdCVPRXdI">import streamlit as st
+
+import llm                                    # ← 新增
+from theme import THEMES, apply_theme, current_theme_name</pre>
+      </div>
+
+      <h4 data-page-node-id="W5DNqkNF3uZDNZPHx1ozQ0">② 聊天段改成「三段式」</h4>
+      <span class="loc" data-page-node-id="ZR9DdYDw0PzuvYvNptEmgD">📍 <code data-page-node-id="MI4LbmtCZ6Bx2GAKF9DgZ5">if prompt := st.chat_input(...)</code> 那一段</span>
+      <div class="code before" data-page-node-id="0cebvcCoxer9cgxHrnZw2a">
+        <div class="tag" data-page-node-id="ivHL6H1bLq4aj62OsnEsQp"><span data-page-node-id="21bfNzADyc1yR0um3CKgUq">改前（24 行，SDK 调用裸露在界面层）</span></div>
+<pre data-page-node-id="qgJWPK1zvP3LOWZgl5vYKI">    try:
+        client = mgr.build_client(provider)
+        history_messages = messages[-mgr.history_length:]
+        response = client.chat.completions.create(
+            model=provider.get("model"),
+            messages=[{"role": "system", "content": sys_prompt}, *history_messages],
+            stream=True,
+        )
+
+        def generate_response():
+            for chunk in response:
+                content = chunk.choices[0].delta.content
+                if content:
+                    yield content
+
+        with st.chat_message(assistant_name, avatar=assistant_avatar):
+            full_response = st.write_stream(generate_response)
+
+        messages.append({"role": "assistant", "content": full_response})
+        mgr.save_session(messages)
+
+    except Exception as e:
+        st.error(f"❌ 与 AI 通信发生错误: {e}")</pre>
+      </div>
+      <div class="code after" data-page-node-id="OP9lBNvttRiu887N7db05v">
+        <div class="tag" data-page-node-id="pNOwBTRIQsEIZrSSr1OHNu"><span data-page-node-id="sHV3w0t1qEskBCw9ysexkI">改后：三段，各管一件事</span></div>
+<pre data-page-node-id="iZlSbiHtrYBtDUjNJ2ZRNs">    try:
+        # ── ① 会话记忆（临时）──
+        history_messages = messages[-mgr.history_length:]
+
+        # ── ② 模型调用 ──
+        with st.chat_message(assistant_name, avatar=assistant_avatar):
+            full_response = st.write_stream(
+                llm.stream_chat(provider, history_messages, system_prompt=sys_prompt)
+            )
+
+        messages.append({"role": "assistant", "content": full_response})
+        mgr.save_session(messages)
+
+        # ── ③ 长期记忆（跨会话）──
+        if mgr.memory_enabled:
+            mgr.remember_from_exchange(provider, companion, messages)
+
+    except Exception as e:
+        st.error(f"❌ 与 AI 通信发生错误: {e}")</pre>
+      </div>
+
+      <div class="box key" data-page-node-id="2O2p9BLGvepABiJrXxtPVo">
+        <span class="t" data-page-node-id="E4mi6Fssje90Uy10jy1kkB">这一段的注释是全项目最值得看的</span>
+        它把两个 Memory 概念摆在同一屏里：
+      </div>
+      <div class="code after" data-page-node-id="rJ1OGWxeLESfwtGznQjtNb">
+        <div class="tag" data-page-node-id="SE1Ip8qTdoi1w26tb5mwbg"><span data-page-node-id="H3x5ju7rqquWSxNaZWMDsO">会话记忆的注释（改后新增）</span></div>
+<pre data-page-node-id="skMNANdoWhkK7hHHHVC6Z5">        # 这行切片就是"会话内记忆"的全部实现：把最近 N 条历史带上。
+        # 切片的范围只限当前 messages —— 换个会话，messages 换了一批，
+        # 伴侣就"忘了"。所以它只在会话内有效。
+        history_messages = messages[-mgr.history_length:]</pre>
+      </div>
+      <div class="box why" data-page-node-id="pCBW83vDL7cIDPC2fPYv7o">
+        <span class="t" data-page-node-id="SHOHRJ9turGBSnmVlm5HwY">为什么第 ③ 步要放在回复之后</span>
+        用户已经看到回复了，抽取这一下慢一点也感觉不到。
+        如果放前面，用户就得为"记忆"多等 0.7 秒。
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 3.6 sidebar.py ===== -->
+  <div class="filecard" data-page-node-id="1HROiHtkRy0fL22VQKFleD">
+    <div class="head" data-page-node-id="7pOjyTaP5Lw13pzT93zC3a">
+      <span class="name" data-page-node-id="tDTnd54BRqQCQW5SGIrGyT">sidebar.py</span>
+      <span class="pill edit" data-page-node-id="9Emh6mCIkGemmXz7iGY9LA">改 · 3 处</span>
+      <span class="sub" data-page-node-id="0X3z19NDXfbNYlTd9nd6L5">记忆面板 + 开关</span>
+    </div>
+    <div class="body" data-page-node-id="JGHBiNLBGoEFcdyJOjzkhR">
+      <h4 data-page-node-id="QkvDCCFBXhjHCAlNTFfmXb">① 两个回调函数</h4>
+      <span class="loc" data-page-node-id="CwNeGH56U1NpaJ9pwbEbaq">📍 放在其他回调（<code data-page-node-id="TWnpKj1D3bFGFExE46mgo4">load_session</code> 等）旁边</span>
+      <div class="code after" data-page-node-id="tENI853qoja9nENBOMJQjl">
+        <div class="tag" data-page-node-id="OdmsUGeV2oSjf7JdXDoIPo"><span data-page-node-id="mlltbH9cUPORGcBBaUMU1e">改后（+10 行）</span></div>
+<pre data-page-node-id="YhLuQU1K23jXarhcv5C4ZP">def forget_fact(fact_id):
+    """让当前伴侣忘掉某一条长期记忆"""
+    st.session_state["manager"].forget_fact(fact_id)
+
+
+def forget_all_facts():
+    """清空当前伴侣的全部长期记忆"""
+    st.session_state["manager"].forget_all()</pre>
+      </div>
+      <div class="box why" data-page-node-id="LAl2B1n7bER9rs4UC0HRka">
+        <span class="t" data-page-node-id="NpmLJbJOBatchTOQFjLiG9">为什么回调叫 <code data-page-node-id="XMDlAYfj8H3tPrJ2hWO0jy">forget_all_facts</code> 而不叫 <code data-page-node-id="XMm3Jf7IenSPx9hZCIoBZ4">forget_all</code></span>
+        业务方法已经叫 <code data-page-node-id="R4Qm8JgC4X5o781Ek62kzh">mgr.forget_all()</code>，回调同名的话看代码时会分不清
+        "这是界面回调"还是"这是业务方法"。加个 <code data-page-node-id="M4GTixq4kdTC63Gwn9bYEl">_facts</code> 后缀就分开了。
+      </div>
+
+      <h4 data-page-node-id="ae97FRqBnKdPjFfSC7vaon">② 聊天设置里加开关</h4>
+      <span class="loc" data-page-node-id="PQgKjHFNAtLt57CYmOmCrt">📍 「聊天设置」折叠块内，管理消息开关下面</span>
+      <div class="code after" data-page-node-id="DEliEjXvtaLvqXGC3HXI7G">
+        <div class="tag" data-page-node-id="2m1ZT4d7SzbE6LDUCTkuTk"><span data-page-node-id="C6wKGDAIb3nhMQQ78LwRCQ">改后（+4 行）</span></div>
+<pre data-page-node-id="8Eogp5Rtt5HsQSughGFtax">            mgr.memory_enabled = st.toggle(
+                "自动记住关于我的事", value=mgr.memory_enabled,
+                help="每轮对话后让模型挑出值得长期记住的事（会多花一次很小的模型调用）",
+            )</pre>
+      </div>
+
+      <h4 data-page-node-id="AxwXrsmZfCh9ds3yJwtwdd">③ 新增「🧠 TA 记得你的事」折叠块</h4>
+      <span class="loc" data-page-node-id="rPzW8JtUdPyUP6UhnCqj87">📍 「聊天设置」之后、「我的资料」之前</span>
+      <div class="code after" data-page-node-id="XEVfFDBlqrQDr1BtAxhIG2">
+        <div class="tag" data-page-node-id="Ct2BG0F5C7b7unqMHF4Alp"><span data-page-node-id="b0132uCux03SoAIrGJlBD3">改后（+27 行）</span></div>
+<pre data-page-node-id="Bu6DHsktyUTCasWkDD1oJN">        # ── 长期记忆（跨会话）──
+        # 和「会话历史」的区别：会话是"这次聊了什么"，只在这个会话里有效；
+        # 这里是"TA 记得你是个什么样的人"，换会话、关程序都还在。
+        with st.expander("🧠 TA 记得你的事", expanded=False):
+            cc_mem = mgr.current_companion()
+            if not cc_mem:
+                st.caption("先创建一个伴侣")
+            else:
+                facts = mgr.memory_facts()
+                if not facts:
+                    st.caption("还没记住什么。多聊几句，重要的信息会自动记下来。")
+                for f in facts:
+                    col1, col2 = st.columns([5, 1])
+                    with col1:
+                        st.caption(f.get("text", ""))
+                    with col2:
+                        st.button("", icon="🗑️", key=f"forget_{f['id']}",
+                                  help="让 TA 忘掉这条",
+                                  on_click=forget_fact, args=(f["id"],))
+                if facts:
+                    st.button("🧹 清空全部记忆", width="stretch", key="forget_all_btn",
+                              on_click=forget_all_facts)</pre>
+      </div>
+      <p data-page-node-id="krOuxBadTIWXw9zqXG84g4">顺带把文件顶部 docstring 从「四个折叠块」改成「五个折叠块」。</p>
+      <div class="box why" data-page-node-id="qegnJID4NaQ6dl6pF5ssQG">
+        <span class="t" data-page-node-id="JpGpI7TVNKdZ4CENSp7Md4">为什么界面层不直接 new 一个 <code data-page-node-id="2Uy5cdlSQXm1SvbFgbREsl">CompanionMemory</code></span>
+        界面层只调 <code data-page-node-id="vWu72bvGk1ucsjWi4VAK0q">mgr.memory_facts()</code> / <code data-page-node-id="wbNCtbzwM0eti5OKF62R9F">mgr.forget_fact()</code>，
+        <b data-page-node-id="Jzd6MjxzKGugnPuK376663">完全不 import memory 模块</b>。这样"记忆存在哪、怎么存"改了也不用动界面 —— 分层才立得住。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 4. 自测清单 ═══════════ -->
+<section id="s4" data-page-node-id="gdmUtKnxydXO3DyuIy9mvr">
+  <h2 data-page-node-id="m6oR4gXU0pqv7zakVikQLc"><span class="num" data-page-node-id="JcUHoIIPgA8AMAX8rrY4sF">4</span>自测清单（自己动手验）</h2>
+  <div class="ptext" id="ptext" data-page-node-id="W0e3QXNL331R1jvQeBI1sH">进度 0 / 11</div>
+  <div class="progress" data-page-node-id="UHuv1mtDKB1PuKVCCAdkcl"><i id="pbar" data-page-node-id="BeigSD09uSzpCQKXQtLNdU"></i></div>
+
+  <ul class="check" id="checklist" data-page-node-id="R3EwwnXcckHc3LSOxUEUwh">
+    <li data-page-node-id="gqiPBm90ioBprSGDwD8KJp"><input type="checkbox" data-page-node-id="8rLFzBu5zrJ6eyPEwGQfu0"><span class="lab" data-page-node-id="fVz1OOyv33G7jBfbVA01jQ">`streamlit run main.py` 能起来，无明显报错</span></li>
+    <li data-page-node-id="e0BTGTqjDJlILu0vweN8S0"><input type="checkbox" data-page-node-id="n6iZGXHJK7QLxO3XR2iKmY"><span class="lab" data-page-node-id="Meyi6GTeLubzT2JsasqxO1">侧边栏出现「🧠 TA 记得你的事」折叠块</span></li>
+    <li data-page-node-id="nxCFyLq9BoDvHkhGUD0p45"><input type="checkbox" data-page-node-id="YRJqmbZglTPARRESW6VrEe"><span class="lab" data-page-node-id="dDKoGkKLlUEpkVvhgWK9sf">跟伴侣说一句「我叫 XXX，在做软件测试」→ 等回复</span></li>
+    <li data-page-node-id="b58iNEFLQ0rqxb6nojGXcd"><input type="checkbox" data-page-node-id="GHhcVwELpRd73uTaoQQhyX"><span class="lab" data-page-node-id="Me0cwH8vhkiYVfVXMBKhZl">展开记忆面板 → 应该出现「用户叫 XXX」</span></li>
+    <li data-page-node-id="fNzmcoElHGnQ1vrE0qAFEu"><input type="checkbox" data-page-node-id="AV4yPEOAeZVneWr746YX9H"><span class="lab" data-page-node-id="m2OkbudqSBbhPBVeLadm3p">★ 点「➕ 新建会话」→ 再打开记忆面板 → 记忆还在<span class="hint" data-page-node-id="ApDZKsdBGgP0Gj5uJMwqJm">核心验证：这一步过不了，说明长期记忆没生效</span></span></li>
+    <li data-page-node-id="j5NSF62mC1JPP8xF4JTUhc"><input type="checkbox" data-page-node-id="4CTd7YRIIAnvzc2xkpcI2Q"><span class="lab" data-page-node-id="jpBGzIgaRN0i5EtWVGwnNp">在新会话里问它「你知道我是谁吗」→ 应该能答上来</span></li>
+    <li data-page-node-id="nCHpesJHvJsaBWzunJqXe2"><input type="checkbox" data-page-node-id="odtUFeD92m3Hcg7TbHfDdJ"><span class="lab" data-page-node-id="COWJFZY7bV3pVR1fsjc5Ca">去 `data/memory/&lt;伴侣id&gt;.json` 看文件，应该是可读的中文 JSON</span></li>
+    <li data-page-node-id="tbB0u7ozJBmhvNt8TeIug3"><input type="checkbox" data-page-node-id="SleytxFA19965suHAKpDuA"><span class="lab" data-page-node-id="RLSqcgFQEzom3W975et7UC">点某条记忆的 🗑️ → 那条消失且文件同步变化</span></li>
+    <li data-page-node-id="1Nn4TSAFXTrvEV5egE8Jf1"><input type="checkbox" data-page-node-id="FvfUvCEIh4RIUyqVyw0lyG"><span class="lab" data-page-node-id="dPOvNGe4ilhxoC1bEmgpCY">关掉「自动记住关于我的事」开关 → 再聊天 → 记忆不再增加</span></li>
+    <li data-page-node-id="7nBQWGXjxn50VNBGQxVC8g"><input type="checkbox" data-page-node-id="MxsL7FzLySRdbSv3tAo88M"><span class="lab" data-page-node-id="iK1XNT7T3kGnqQfglsLfhr">故意把 API Key 改错 → 聊天报错，但<b data-page-node-id="Mj5XhR0b3NThzSRygk8Tcb">不应该多卡 10 秒</b><span class="hint" data-page-node-id="NeB5gu35hxijwaVy5weQyt">验证 max_retries=0 生效：失败应约 5s 返回，而不是 10s</span></span></li>
+    <li data-page-node-id="Osm3shRF5OMwM7zyHpK5Y4"><input type="checkbox" data-page-node-id="ECZtSNmzVkNMqs1MrM5eFJ"><span class="lab" data-page-node-id="IwBn0R8j27ZzYSSZjTOrLm">`data/` 下不该出现 `.tmp` 残留文件</span></li>
+  </ul>
+
+  <h3 data-page-node-id="rFOtkjUUiUeBjll66ib54x">已经跑过的实测记录（参考）</h3>
+  <table data-page-node-id="LxCs7t5mLIYRZr3KnpOkkB">
+    <thead data-page-node-id="orq51kcfMPt4IF2xYYg8iR"><tr data-page-node-id="jKiazv65hhHd0pHWE5zFfY"><th data-page-node-id="wC34Ao85LAe6xZsAkzQr7E">验证项</th><th data-page-node-id="X9KGc07AkmPHXEl6SAvMAz">结果</th></tr></thead>
+    <tbody data-page-node-id="88MVQTjQVaT4iCxebtBArd">
+      <tr data-page-node-id="DbECgA0KDRcVOX1ttzZhJl"><td data-page-node-id="0YqhkTFOTyQMUhMatTkHi9"><code data-page-node-id="J2968NgKYT785NwdTR02TN">parse_extraction</code> 边界</td><td data-page-node-id="DA70ya7gUwzTR4pHYVRvZF">8 / 8 通过</td></tr>
+      <tr data-page-node-id="hZALfeAkS6ylfzs3pKKdrL"><td data-page-node-id="UTptmmdFa0jlSp4KP7rLjj"><code data-page-node-id="J4H4v7DRPoAWjGGlh2Evhg">CompanionMemory</code> 读写 + 去重</td><td data-page-node-id="da7zyBhK852NSIAmeQ0wP3">add 3 条（含 1 条重复）→ 实际新增 2 条 ✅</td></tr>
+      <tr data-page-node-id="fFvwIy2uSsVPV0SWF80txx"><td data-page-node-id="LFD7TjqL3z8biedHsJAi5g">真实抽取（qwen-turbo）</td><td data-page-node-id="Ta3Cb3KqGnSxDjqRYFK5Hb">正确抽出「用户叫李永康」「用户养了一只叫团子的猫」，<b data-page-node-id="LZop8egS2FJPFkMvSiYdT0">正确忽略了「今天天气还不错」</b> ✅</td></tr>
+      <tr data-page-node-id="Qc4iVsH5DOU6oy7CqCe9ue"><td data-page-node-id="5lFQPYLpetqpBwhkjgpsnA">★ 跨会话</td><td data-page-node-id="snsps1Idz0Sw7z0gnR6Sfm">切会话后会话消息 0 条，但长期记忆 4 条仍在，新会话 system prompt 仍带记忆 ✅</td></tr>
+      <tr data-page-node-id="jtH1XMgRm4TYXIVKAWBQpg"><td data-page-node-id="yzbWkzdNNLPeAQAHX7Bctr">最强证据</td><td data-page-node-id="5SfJ3zVdf0yo0UjFgAX5UK">全新一轮对话里，伴侣第一句就是"嗯，团子又在沙发上打盹了，你今天测试得怎么样？"</td></tr>
+      <tr data-page-node-id="pZWzRCEUDQelQdRzCnJFx0"><td data-page-node-id="8DrN473Cp7rRW9y3O9Tti9">Streamlit AppTest</td><td data-page-node-id="lfPu5nDsHztzEhHDXgx7FK"><code data-page-node-id="aDTJrbupLLPB6gD7quz5p9">at.exception: 无</code>；侧边栏 5 个 expander；<code data-page-node-id="czB2DpD7Or5N62UCTVgIa5">forget_*</code> 按钮 3 个；toggle 2 个 ✅</td></tr>
+      <tr data-page-node-id="lllBAg1R01bto6pm43CEej"><td data-page-node-id="j1SJTjvF4cIfHkQGxQvEQm">抽取失败静默</td><td data-page-node-id="lr2DXh9ZliI3Bc3AI9wQvJ">优化前 10.1s → 优化后 5.0s（正常路径 0.7s）</td></tr>
+    </tbody>
+  </table>
+  <div class="box warn" data-page-node-id="ss9hf0tmKSn5DRLfN0NE1c">
+    <span class="t" data-page-node-id="HVjJjBTbW9djeV2yynyNvv">诚实说明</span>
+    以上全部在<b data-page-node-id="XjkzqAhmLu62WWPpYGGMlv">项目副本</b>里跑的，你真实的 <code data-page-node-id="NRvfiQARj88biF4u8Ffcdt">D:\Soulmate-Ai\data\</code> 一个字没动
+    （文件时间戳还是 9/10–9/11）。单测在 <code data-page-node-id="B635cW3fyrjzvWHnraLTES">tests/test_memory.py</code>，20 个用例全过。
+  </div>
+</section>
+
+<!-- ═══════════ 5. 踩坑 ═══════════ -->
+<section id="s5" data-page-node-id="kAxWBDmAOTBbzB5BrDBCDk">
+  <h2 data-page-node-id="KECm1E4v4tfuPwlRJ9xDnT"><span class="num" data-page-node-id="uCP2COXd0zxQ0Q8oKqw4eH">5</span>踩坑速查</h2>
+  <table data-page-node-id="kydra4Bh1MTvATnI5J0CVq">
+    <thead data-page-node-id="iFsFiqkV64UessX6gcVfBV"><tr data-page-node-id="FSeDGcCYrJNaWG5IDIwD6J"><th data-page-node-id="Q9jWInTu4CcUt1CcoYQwRi">坑</th><th data-page-node-id="8xJfD423bDSxixzC6Hgj3I">现象</th><th data-page-node-id="T1ZHwzVGka0yPGyWcDXt2q">怎么解</th></tr></thead>
+    <tbody data-page-node-id="NNIaqhktzHLw3K1PYJ6Ez3">
+      <tr data-page-node-id="YfhrZ5wFtkaFOnQM8JnPd6">
+        <td data-page-node-id="UOEoW5yHHPBqIXLnxtBbIa">模型不输出纯 JSON</td>
+        <td data-page-node-id="pU8bBLP4gONeOUBgwoLiv5"><code data-page-node-id="Zlt52CiOLYC1GKwCAQeNTM">json.loads</code> 抛异常，聊天崩</td>
+        <td data-page-node-id="Agf71M10t7gjSp2l3mhciD">提示词里先堵死（"不要 markdown 代码块"）+ <code data-page-node-id="NkMUbhSh6UErXYvNZMIfkQ">parse_extraction</code> 三重兜底 + 失败返回 <code data-page-node-id="45dvsj9lXEzCaK7BcLQE2L">[]</code></td>
+      </tr>
+      <tr data-page-node-id="qsYYnm858hilB6Ful4EphF">
+        <td data-page-node-id="HcHtvubb0OTUbhlhFnRTq5">同一件事被记几十遍</td>
+        <td data-page-node-id="O6oSHDiR7x2x7H4JLHNLCR">记忆面板里刷屏</td>
+        <td data-page-node-id="Iu9CxK4FcGS1i3palPezuf"><code data-page-node-id="7XA0MKKFeDGlf4qhJSfMpZ">add()</code> 里用 <code data-page-node-id="TsdWwl1uqG6I6b3uCIxaaO">seen</code> 集合去重</td>
+      </tr>
+      <tr data-page-node-id="CoaAj9yzip9f4xJIWjHfZI">
+        <td data-page-node-id="a7C5f97rkapyLFtLqMpyXq">抽取失败卡 10 秒</td>
+        <td data-page-node-id="2tHmLFsSU76haC9dB2BIfZ">回复完了界面还在转</td>
+        <td data-page-node-id="BB8imOAydL0AD5g3GRFRhb"><code data-page-node-id="vWXybuBDRWWuWYPLlZWAwF">max_retries=0</code>（默认是 2）。注意它是<b data-page-node-id="fO4g951TUIyH9BRuZhUXap">客户端级</b>参数，只能从 <code data-page-node-id="DwjhcLE6IHvFK0BARDZ1V5">build_client</code> 传</td>
+      </tr>
+      <tr data-page-node-id="2hXjSVXFiX7Ms2eCVbbnty">
+        <td data-page-node-id="zQaZHaEoPTp8cDTdiDIPCe">流式解析 IndexError</td>
+        <td data-page-node-id="N29CUmwkQHSqDC4KllAhR2">偶发 <code data-page-node-id="WCak9tkWJAGTiwwcrp9r5X">IndexError: list index out of range</code></td>
+        <td data-page-node-id="8BiQcUO0ebrEhXHacgDWE9"><code data-page-node-id="EZz0N4RE8QmtD5okzoA8qX">if not chunk.choices: continue</code></td>
+      </tr>
+      <tr data-page-node-id="4hSKoofQyzd4miduEFhB1o">
+        <td data-page-node-id="xWgVodagAMPWIeYm6tenBo">记忆改了下一轮不生效</td>
+        <td data-page-node-id="iCTGee45moqudCLgXaCaRW">要重启才能用上</td>
+        <td data-page-node-id="ST9rqWnxTPOxMeKSe3poNS">不要缓存 <code data-page-node-id="GycE4pLGckphwpeexbRGGb">facts</code>，用 <code data-page-node-id="6DBI0gdDvwHWJUEFi7FOTc">@property</code> 每次现读盘；<code data-page-node-id="UAknliRPlkJlpF1aUhZ7IA">build_system_prompt</code> 里现拼</td>
+      </tr>
+      <tr data-page-node-id="k6Ii8CV7KwJugkUoEIRb2f">
+        <td data-page-node-id="5YFofrpsqMLFi69KErzacB">换会话后伴侣失忆</td>
+        <td data-page-node-id="EuNTMDbBbmZ4WFTbFAWvl9">长期记忆没起作用</td>
+        <td data-page-node-id="jixGbw2AlQddp7IkZHXUtk">检查 <code data-page-node-id="H1zVOVemaKfSuDJ1GXGqin">build_system_prompt</code> 里那 6 行注入是否漏了；确认 <code data-page-node-id="rsWIfN68piMkH3Gaj69PDJ">data/memory/&lt;伴侣id&gt;.json</code> 是<b data-page-node-id="59X9qAyTZA2IJ62nhLQcFt">按伴侣</b>而不是按会话存</td>
+      </tr>
+      <tr data-page-node-id="Qk2i9dsVXRckAyF7kvpmQ4">
+        <td data-page-node-id="XAVO0DdxaVH70tKaDyPy5h">base_url 被环境变量劫持</td>
+        <td data-page-node-id="bmmltuEEr41JkKXGwv9GdU">请求发到别的地方</td>
+        <td data-page-node-id="yDhXQ4f1UnjNXKONE6ErL4">OpenAI SDK 会自己读 <code data-page-node-id="jn2gHvblNpAL5j0GQ1F82j">OPENAI_BASE_URL</code>（你电脑上正好有这个变量）→ 必须显式传 <code data-page-node-id="0fEl7JXEnI9v2IrCcbxYkb">base_url</code></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════ 6. 不该改 ═══════════ -->
+<section id="s6" data-page-node-id="PhFTvYgV8QQGE2mArlTHso">
+  <h2 data-page-node-id="0Zw2oEP5RoYHR0YdLuyMHe"><span class="num" data-page-node-id="hQrY09hmz4LnVsryeJyrOE">6</span>什么<b data-page-node-id="8Biyrtdeaiw5Uc2AO8kGKV">不</b>该改（容易手痒的地方）</h2>
+  <ul data-page-node-id="s1ISYSxrTYE0MbMsP9TMEt">
+    <li data-page-node-id="bO6HlbWjhKr2cZcIrAdiSu"><code data-page-node-id="8XF6pMUZPp92w0oNG7HCoJ">storage.py</code> —— 它是通用文件读写（<code data-page-node-id="CBZuZF7jFvBpznh7XFGFwD">read_json</code> / <code data-page-node-id="Fk8e41r6uXFSzQhMlHRF5Q">write_json</code> / <code data-page-node-id="3JUlQeLGQH9DK0rn6T60xA">delete_file</code>，还带原子写）。<code data-page-node-id="I8Dv4bTx0HVPUuFe84xBE9">memory.py</code> 复用它，<b data-page-node-id="pv40o3KdOJMwGsvGkr62R4">一行都不用改</b>。</li>
+    <li data-page-node-id="Ck9XMEkTazBpW2FC0u3DcA"><code data-page-node-id="T10x7ynExQ3SdO5KiadwXI">llm.py</code> —— 本次新增后，<b data-page-node-id="uO78ThPVBjd7h7neIjWru8">和记忆完全无关</b>。它不管历史从哪来、存到哪去。将来加 Function Calling 才动它。</li>
+    <li data-page-node-id="Hlc7lVhJj34MOpdqBMYYyB"><code data-page-node-id="LmaBuqCLQNVngLHE0DBw33">dialogs.py</code> / <code data-page-node-id="CVDvtvw41zrFZbnil7Wok0">theme.py</code> —— 与本次无关。</li>
+    <li data-page-node-id="Xs0MgOw5Ro1uZOmamx8Gq3">会话存储结构 —— <code data-page-node-id="0efVzX0tdMLJZ9mUPD94IZ">data/sessions/&lt;伴侣id&gt;/&lt;会话id&gt;.json</code> 保持原样，长期记忆是<b data-page-node-id="nE5DgqGsovyHWsfpApP44r">另起一套</b>，不是改它。</li>
+    <li data-page-node-id="WGCPDQVyUkYMMLmNfGSbPi">伴侣数据结构 —— 记忆<b data-page-node-id="SzjpuTI4s7Delw6uiXDtHg">不</b>写进 <code data-page-node-id="Ei27VpFfNFM5z4nch4Blsp">companions.json</code>。理由和昵称一样：记忆增长快、更新频繁，混进伴侣配置会让那个文件越来越大、还容易被误提交。</li>
+  </ul>
+
+  <div class="box key" data-page-node-id="k3uePH8vMHWoDsLQbEa3Cx">
+    <span class="t" data-page-node-id="h0RmM3tBLGZ0cFp74rISvV">分层口诀（背下来就能应付面试）</span>
+    <code data-page-node-id="JUUjNAW9EHOlazmJuP13Bh">config</code> 纯数据 → <code data-page-node-id="2TaanjHNC5KWPcSGobpCuR">storage</code> 纯读写 → <code data-page-node-id="Ap2ioee7VHQeDJYZOdagu0">memory</code> / <code data-page-node-id="bG71XJeS9p70492Ao2YRGW">llm</code> 两个能力层 → <code data-page-node-id="RV0NwQcsoWm13itGBLcNYv">companion_manager</code> 业务逻辑 → <code data-page-node-id="cmWuzfB8jXUDzW9wQhHTRU">main</code> / <code data-page-node-id="lausBlErCOYHySX43qw0xH">sidebar</code> 界面。
+    <b data-page-node-id="Y4ckvkyRDY8yGgXMjs5avu">界面层不 import memory，业务层不 import openai。</b>
+  </div>
+</section>
+
+<footer data-page-node-id="PbEBklxr5RD5j4ptpHWwHN">Soulmate-Ai · 长期记忆练习 · 生成于 2026-09-14 · 勾选进度存在浏览器本地</footer>
+</div>
+
+<script>
+(function(){
+  // ── 练习模式 ──
+  var btnMode = document.getElementById('btn-mode');
+  var btnAns  = document.getElementById('btn-ans');
+
+  function setMode(on){
+    document.body.classList.toggle('hideans', on);
+    btnMode.classList.toggle('on', on);
+    if(!on){ document.querySelectorAll('.code.after').forEach(function(el){ el.classList.remove('reveal'); }); }
+  }
+  btnMode.addEventListener('click', function(){ setMode(!document.body.classList.contains('hideans')); });
+  btnAns.addEventListener('click', function(){ setMode(false); });
+  document.addEventListener('click', function(e){
+    var blk = e.target.closest('.code.after');
+    if(blk && document.body.classList.contains('hideans')) blk.classList.add('reveal');
+  });
+
+  // ── 自测清单 + 进度条 ──
+  var KEY = 'soulmate_memory_exercise_v1';
+  var list = document.getElementById('checklist');
+  var items = Array.prototype.slice.call(list.querySelectorAll('li'));
+  var saved = [];
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch(_){}
+
+  function refresh(){
+    var n = 0;
+    items.forEach(function(li, i){
+      var cb = li.querySelector('input');
+      li.classList.toggle('done', cb.checked);
+      if(cb.checked) n++;
+    });
+    document.getElementById('ptext').textContent = '进度 ' + n + ' / ' + items.length;
+    document.getElementById('pbar').style.width = (items.length ? (n/items.length*100) : 0) + '%';
+    try { localStorage.setItem(KEY, JSON.stringify(items.map(function(li){return li.querySelector('input').checked ? 1 : 0;}))); } catch(_){}
+  }
+
+  items.forEach(function(li, i){
+    var cb = li.querySelector('input');
+    if(saved[i]) cb.checked = true;
+    li.addEventListener('click', function(e){
+      if(e.target.tagName !== 'INPUT'){ cb.checked = !cb.checked; }
+      refresh();
+    });
+  });
+  refresh();
+})();
+</script>
+</body>
+</html>

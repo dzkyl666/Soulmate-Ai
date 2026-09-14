@@ -4,11 +4,12 @@
 对标参考项目 04-multibot 的 custom_pages/utils/sidebar.py：
 所有"切换 / 列表 / 设置"都收在这里，main.py 只管聊天主区。
 
-四个折叠块（用 expander 保持侧边栏整洁）：
-    我的伴侣   —— 点谁切谁；🗑 删伴侣；➕ 新建伴侣
-    会话历史   —— 只显示"当前伴侣"的会话，伴侣之间互不干扰
-    模型服务   —— 模型服务池：改 / 删 / 加
-    聊天设置   —— 携带历史条数 + 批量管理模式开关
+五个折叠块（用 expander 保持侧边栏整洁）：
+    我的伴侣       —— 点谁切谁；🗑 删伴侣；➕ 新建伴侣
+    会话历史       —— 只显示"当前伴侣"的会话，伴侣之间互不干扰
+    模型服务       —— 模型服务池：改 / 删 / 加
+    聊天设置       —— 携带历史条数 + 批量管理模式开关
+    TA 记得你的事  —— 长期记忆（跨会话）：看 / 删 / 清空
 """
 import streamlit as st
 
@@ -48,6 +49,16 @@ def load_session(session_id):
     mgr.pending_session = False
     mgr.manage_mode = False
     st.session_state["messages"] = mgr.load_messages(session_id)
+
+
+def forget_fact(fact_id):
+    """让当前伴侣忘掉某一条长期记忆"""
+    st.session_state["manager"].forget_fact(fact_id)
+
+
+def forget_all_facts():
+    """清空当前伴侣的全部长期记忆"""
+    st.session_state["manager"].forget_all()
 
 
 # ══════════════════════════════════════════════════
@@ -161,6 +172,33 @@ def render_sidebar():
                 "管理消息（批量删除）", value=mgr.manage_mode,
                 help="打开后每条消息前会出现勾选框，可以一次删多条",
             )
+            mgr.memory_enabled = st.toggle(
+                "自动记住关于我的事", value=mgr.memory_enabled,
+                help="每轮对话后让模型挑出值得长期记住的事（会多花一次很小的模型调用）",
+            )
+
+        # ── 长期记忆（跨会话）──
+        # 和「会话历史」的区别：会话是"这次聊了什么"，只在这个会话里有效；
+        # 这里是"TA 记得你是个什么样的人"，换会话、关程序都还在。
+        with st.expander("🧠 TA 记得你的事", expanded=False):
+            cc_mem = mgr.current_companion()
+            if not cc_mem:
+                st.caption("先创建一个伴侣")
+            else:
+                facts = mgr.memory_facts()
+                if not facts:
+                    st.caption("还没记住什么。多聊几句，重要的信息会自动记下来。")
+                for f in facts:
+                    col1, col2 = st.columns([5, 1])
+                    with col1:
+                        st.caption(f.get("text", ""))
+                    with col2:
+                        st.button("", icon="🗑️", key=f"forget_{f['id']}",
+                                  help="让 TA 忘掉这条",
+                                  on_click=forget_fact, args=(f["id"],))
+                if facts:
+                    st.button("🧹 清空全部记忆", width="stretch", key="forget_all_btn",
+                              on_click=forget_all_facts)
 
         # ── 我的资料（全局一份，所有伴侣共用）──
         st.divider()

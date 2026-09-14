@@ -11,6 +11,7 @@ AI 智能伴侣 —— 主程序（入口）
 """
 import streamlit as st
 
+import llm
 from theme import THEMES, apply_theme, current_theme_name
 from companion_manager import CompanionManager
 from sidebar import render_sidebar
@@ -178,29 +179,35 @@ if prompt := st.chat_input("请输入你的问题"):
     st.chat_message(user_name, avatar=user_avatar).write(prompt)
     messages.append({"role": "user", "content": prompt})
     mgr.save_session(messages)
-    # 系统提示词 = 伴侣人设 + 占位符替换 + 「对方是谁」
+    # 系统提示词 = 伴侣人设 + 「对方是谁」+ 长期记忆（跨会话记得你）
     sys_prompt = mgr.build_system_prompt(companion)
 
     try:
-        client = mgr.build_client(provider)
-        history_messages = messages[-mgr.history_length:]     # 只带最近 N 条，防 token 暴涨
-        response = client.chat.completions.create(
-            model=provider.get("model"),
-            messages=[{"role": "system", "content": sys_prompt}, *history_messages],
-            stream=True,
-        )
+        # ── ① 会话记忆（临时）──
+        # 这行切片就是"会话内记忆"的全部实现：把最近 N 条历史带上。
+        # 切片的范围只限当前 messages —— 换个会话，messages 换了一批，
+        # 伴侣就"忘了"。所以它只在会话内有效。
+        history_messages = messages[-mgr.history_length:]
 
-        def generate_response():
-            for chunk in response:
-                content = chunk.choices[0].delta.content
-                if content:
-                    yield content
-
+        # ── ② 模型调用 ──
+        # 统一走 llm.py（全项目唯一 import openai 的地方）。
+        # 对比改之前：这里原来是 mgr.build_client() + create() + 手写生成器
+        # 三段，现在一行。将来接 Function Calling 也只改 llm.py。
         with st.chat_message(assistant_name, avatar=assistant_avatar):
-            full_response = st.write_stream(generate_response)
+            full_response = st.write_stream(
+                llm.stream_chat(provider, history_messages, system_prompt=sys_prompt)
+            )
 
         messages.append({"role": "assistant", "content": full_response})
         mgr.save_session(messages)      # 实时保存（首次保存会自动取首句当标题）
+
+        # ── ③ 长期记忆（跨会话）──
+        # 让模型从刚才这轮里挑出「值得长期记住的事」，写进 data/memory/<伴侣id>.json。
+        # 放在回复之后：用户已经看到回复了，抽取这一下慢一点也感觉不到。
+        # 抽不到东西、或者调用失败，都静默跳过，不影响聊天。
+        # 侧边栏「聊天设置」里可以关掉（关掉就不再花这一次额外的模型调用）。
+        if mgr.memory_enabled:
+            mgr.remember_from_exchange(provider, companion, messages)
 
     except Exception as e:
         st.error(f"❌ 与 AI 通信发生错误: {e}")

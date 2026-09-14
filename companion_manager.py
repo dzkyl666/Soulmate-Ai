@@ -20,14 +20,15 @@ import os
 import uuid
 from datetime import datetime
 
+import llm
 import storage
+from memory import CompanionMemory, EXTRACT_PROMPT, parse_extraction
 from config import (
     PROVIDERS_FILE,
     COMPANIONS_FILE,
     SESSIONS_DIR,
     PROFILE_FILE,
     LEGACY_SESSION_DIR,
-    PROVIDER_PRESETS,
     DEFAULT_SYSTEM_PROMPT,
     DEFAULT_HISTORY_LENGTH,
     DEFAULT_AVATAR,
@@ -49,6 +50,7 @@ class CompanionManager:
         self.pending_session = False   # True = 用户主动新建、还没落盘的会话
         self.manage_mode = False       # True = 消息批量管理模式
         self.history_length = DEFAULT_HISTORY_LENGTH
+        self.memory_enabled = True     # True = 每轮对话后自动抽取长期记忆（侧边栏可关）
 
     # ══════════════════════════════════════════════════
     # 模型服务 providers
@@ -89,27 +91,9 @@ class CompanionManager:
         """这个模型服务被几个伴侣绑着（删之前要拦一下）"""
         return [c["name"] for c in self.companions if c.get("provider_id") == provider_id]
 
-    @staticmethod
-    def resolve_api_key(provider):
-        """取 Key：优先界面里填的；没填就回退到同名环境变量（兜底，不算白配）"""
-        key = (provider.get("api_key") or "").strip()
-        if key:
-            return key
-        preset = PROVIDER_PRESETS.get(provider.get("preset", ""), {})
-        env_name = preset.get("env_key")
-        return os.getenv(env_name, "") if env_name else ""
-
-    def build_client(self, provider):
-        """按 provider 建 OpenAI 客户端。
-
-        ⚠️ 必须显式传 base_url：OpenAI 的 SDK 会自己读 OPENAI_BASE_URL 环境变量，
-        不传的话请求可能被悄悄发到别的地方去。
-        """
-        from openai import OpenAI
-        return OpenAI(
-            api_key=self.resolve_api_key(provider),
-            base_url=provider.get("base_url"),
-        )
+    # 注意：原本这里的 resolve_api_key() + build_client() 已整体搬去 llm.py。
+    # 从此业务层不再直接碰 openai SDK —— 想换厂商 / 加重试超时 / 接 Function Calling，
+    # 都只改 llm.py 一处，不会在这里和 main.py 之间发散。
 
     # ══════════════════════════════════════════════════
     # 伴侣 companions
@@ -188,14 +172,19 @@ class CompanionManager:
     def build_system_prompt(self, companion):
         """拼出这次请求要用的系统提示词。
 
-        两件事：
+        三件事：
         1. 老数据里可能还残留 {name} / {purpose} 占位符，顺手替换掉；
-        2. 把「正在和你说话的是谁」告诉模型。
+        2. 把「正在和你说话的是谁」告诉模型；
+        3. 【新增】把长期记忆贴上去 —— 「跨会话还记得你」就靠这一步。
 
         第 2 点为什么必须在这里动态拼、而不写进伴侣数据里：
         昵称是**全局资料**（存在 profile.json），不属于任何一个伴侣。
         写进伴侣的话，改一次名字要把所有伴侣都改一遍，还会和新伴侣不一致。
         每次请求现拼，改完立刻生效，也永远不用回写伴侣数据。
+
+        第 3 点也必须是「现拼」：记忆存在 data/memory/<伴侣id>.json，
+        每轮对话后可能刚新增几条。现读现拼 → 刚记住的下一轮立刻生效，
+        不需要重启、不需要额外同步逻辑。
         """
         prompt = (companion.get("system_prompt") or "").strip()
 
@@ -213,7 +202,86 @@ class CompanionManager:
                 f"\n\n【正在和你聊天的人】对方的名字叫「{self.user_nickname()}」。"
                 f"在合适的时候可以自然地称呼 TA 的名字，但不必每句话都叫。"
             )
+
+        # ── 长期记忆注入（今天的重点）──
+        # 读的是 data/memory/<伴侣id>.json，与当前会话无关 → 所以换会话也还记得。
+        mem = self.memory(companion.get("id"))
+        if mem:
+            prompt += mem.to_prompt_block()
+
         return prompt
+
+    # ══════════════════════════════════════════════════
+    # 长期记忆（跨会话）
+    # ══════════════════════════════════════════════════
+    # 和「会话」的区别：
+    #   会话记的是「这次聊了什么」—— 按 session_id 存，换个会话就没了；
+    #   长期记忆记的是「你是谁」—— 按伴侣存，换会话、关程序、过一周都还在。
+    def memory(self, companion_id=None):
+        """拿到某个伴侣的记忆对象；没有伴侣时返回 None（界面层不用自己拼路径）"""
+        cid = companion_id or self.current_companion_id
+        return CompanionMemory(cid) if cid else None
+
+    def memory_facts(self, companion_id=None):
+        """读当前伴侣的全部长期记忆（侧边栏展示用）"""
+        mem = self.memory(companion_id)
+        return mem.facts if mem else []
+
+    def forget_fact(self, fact_id, companion_id=None):
+        """忘掉一条（侧边栏的 🗑️）"""
+        mem = self.memory(companion_id)
+        if mem:
+            mem.remove(fact_id)
+
+    def forget_all(self, companion_id=None):
+        """全部忘掉"""
+        mem = self.memory(companion_id)
+        if mem:
+            mem.clear()
+
+    def remember_from_exchange(self, provider, companion, messages, keep_last=6):
+        """从最近几轮对话里抽取「值得长期记住的事」写进长期记忆，返回新增条数。
+
+        三个设计决定，都不是随手定的：
+
+        ① 只喂最近 keep_last 条，不是全部历史
+           历史越长越烧 token，而「该记住的事」通常就发生在刚才这几轮。
+           更早的内容，前面几轮已经抽过一遍了。
+
+        ② 抽取失败一律静默（except 直接吞）
+           记忆是锦上添花。抽取用的是同一家的模型，网络一抖就会失败，
+           绝不能因为它把「聊天」这条主流程带崩 —— 用户还在等回复。
+
+        ③ 同步调用，不搞后台线程
+           Streamlit 是「全量重跑」架构，没有常驻后台任务的位置。
+           同步 + 极短输出（一次百来个 token），延迟可以接受。
+        """
+        if not provider or not companion or not messages:
+            return 0
+        recent = messages[-keep_last:]
+        convo = "\n".join(
+            f"{'用户' if m.get('role') == 'user' else '伴侣'}：{m.get('content', '')}"
+            for m in recent
+        )
+        try:
+            raw = llm.chat(
+                provider,
+                [{"role": "user", "content": convo}],
+                system_prompt=EXTRACT_PROMPT,
+                temperature=0,        # 抽取要稳定、别发挥
+                # 下面两个是实测加的：SDK 默认会重试 2 次，抽取一旦失败
+                # 就白等 10 秒（用户已经拿到回复了，却卡在这）。
+                # 抽取是"顺手做的事"，失败就放弃，不值得重试。
+                timeout=15,
+                max_retries=0,
+            )
+        except Exception:
+            return 0                  # 见上面 ②
+
+        mem = self.memory(companion.get("id"))
+        if not mem:
+            return 0
+        return mem.add(parse_extraction(raw), session_id=self.current_session_id)
 
     # ══════════════════════════════════════════════════
     # 会话 sessions
@@ -358,23 +426,18 @@ class CompanionManager:
         """让伴侣自己绑定的模型给当前会话起一个更精炼的标题（非流式，一次调用）"""
         if not provider:
             raise ValueError("这个伴侣还没绑定模型服务")
-        client = self.build_client(provider)
         # 只喂前 6 条，省 token，也够模型看懂主题了
         convo = "\n".join(
             f"{'用户' if m['role'] == 'user' else '伴侣'}：{m.get('content', '')}"
             for m in messages[:6]
         )
-        resp = client.chat.completions.create(
-            model=provider.get("model"),
-            messages=[
-                {"role": "system",
-                 "content": "你是标题生成器。用不超过 12 个字概括这段对话的主题，"
-                            "只输出标题本身，不要引号、不要标点、不要解释。"},
-                {"role": "user", "content": convo},
-            ],
-            stream=False,
+        title = llm.chat(
+            provider,
+            [{"role": "user", "content": convo}],
+            system_prompt="你是标题生成器。用不超过 12 个字概括这段对话的主题，"
+                          "只输出标题本身，不要引号、不要标点、不要解释。",
         )
-        return (resp.choices[0].message.content or "").strip().strip("《》\"'。.、 ")
+        return title.strip("《》\"'。.、 ")
 
     # ══════════════════════════════════════════════════
     # 一次性迁移：老版本的单层 session/*.json
