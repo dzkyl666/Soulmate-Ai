@@ -16,9 +16,9 @@ import getpass
 import sys
 
 import soulmate
-from soulmate.auth.user_store import UserStore
 from soulmate.core.logging import setup_logging
 from soulmate.core.settings import get_settings
+from soulmate.services.auth_service import AuthService
 from soulmate.services.container import ServiceContainer
 from soulmate.services.migration import run_all
 
@@ -47,14 +47,15 @@ def _cmd_doctor(_args: argparse.Namespace) -> int:
 
 def _cmd_create_user(args: argparse.Namespace) -> int:
     settings = get_settings()
-    store = UserStore(ServiceContainer(settings, "soulmate-cli").user_repo, settings)
+    # 走 services 门面（与 UI 同一套接口，CLI 不直接碰仓储）
+    auth = AuthService(settings)
     username = args.username or input("用户名: ").strip()
     if args.password:
         password = args.password
     else:
         password = getpass.getpass("密码（至少8位，含大小写和数字）: ")
     try:
-        user = store.admin_create_user(username, password, role=args.role)
+        user = auth.admin_create_user(username, password, role=args.role)
     except Exception as exc:
         print(f"[错误] {exc}")
         return 1
@@ -70,9 +71,7 @@ def _cmd_create_user(args: argparse.Namespace) -> int:
 
 
 def _cmd_list_users(_args: argparse.Namespace) -> int:
-    settings = get_settings()
-    repo = ServiceContainer(settings, "soulmate-cli").user_repo
-    for u in repo.list():
+    for u in AuthService(get_settings()).list_users():
         print(f"{u.username:24s} role={u.role:6s} disabled={u.disabled}")
     return 0
 
