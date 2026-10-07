@@ -31,6 +31,13 @@ services:
       SOULMATE_ENV: production
       SOULMATE_DATA_DIR: /data
       SOULMATE_DEBUG: "false"
+      # ★ 生产部署必须关掉自助注册。
+      # 否则 `validate_for_startup()` 会判定「生产环境 + 开放注册」不合规，
+      # 首页只显示错误页 —— 而 .env.example 里的默认值正是 ALLOW_SIGNUP=true，
+      # 照文档 `cp .env.example .env` 会直接撞上。这里显式覆盖，保证开箱可用。
+      # 需要开号时用 CLI：
+      #   docker compose exec soulmate python -m soulmate.cli create-user --username <名字>
+      SOULMATE_ALLOW_SIGNUP: "false"
 
     ports:
       # 只监听本机，避免直接把未加 TLS 的服务暴露到公网。
