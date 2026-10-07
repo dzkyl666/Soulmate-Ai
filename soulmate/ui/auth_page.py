@@ -10,17 +10,17 @@ from __future__ import annotations
 
 import streamlit as st
 
-from soulmate.auth.user_store import UserStore
 from soulmate.core.exceptions import AuthError, RegistrationDisabled, ValidationError
 from soulmate.core.logging import get_logger
 from soulmate.core.settings import Settings
-from soulmate.storage.repositories import UserRepository
+from soulmate.services.auth_service import AuthService
 
 log = get_logger("soulmate.ui.auth_page")
 
 
-def _store(settings: Settings) -> UserStore:
-    return UserStore(UserRepository(settings.data_root()), settings)
+def _store(settings: Settings) -> AuthService:
+    """拿认证门面（不再是 UserStore + UserRepository —— 那样会 ui→storage 越层）。"""
+    return AuthService(settings)
 
 
 def _login_flow(settings: Settings) -> None:

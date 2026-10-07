@@ -215,10 +215,8 @@ def _new_session(svc: ServiceContainer) -> None:
 
 
 def _is_admin(svc: ServiceContainer, user_id: str) -> bool:
-    from soulmate.auth.user_store import UserStore
-
-    store = UserStore(svc.user_repo, svc.settings)
-    return store.is_admin(user_id)
+    # 用容器上的 auth 门面（不再自己 new UserStore —— 那是 ui→auth 的直接依赖）
+    return svc.auth.is_admin(user_id)
 
 
 def _do_logout(svc: ServiceContainer, user_id: str) -> None:

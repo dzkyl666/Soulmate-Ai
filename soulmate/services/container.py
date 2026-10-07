@@ -16,6 +16,7 @@ from soulmate.core.models import Companion, Provider
 from soulmate.core.settings import Settings
 from soulmate.llm.registry import ProviderRegistry
 from soulmate.llm.service import LLMService
+from soulmate.services.auth_service import AuthService
 from soulmate.services.companion_service import CompanionService
 from soulmate.services.export_service import ExportService
 from soulmate.services.memory_service import MemoryService
@@ -67,6 +68,7 @@ class ServiceContainer:
         self.metrics = UsageMetrics(self.user_dir)
 
         # ── 业务层 ──
+        self.auth = AuthService(settings)
         self.providers = ProviderService(self.provider_repo, settings)
         self.companions = CompanionService(self.companion_repo, self.session_repo, self.memory_repo, self.llm, settings)
         self.memory = MemoryService(self.memory_repo, self.llm, settings, user_id)

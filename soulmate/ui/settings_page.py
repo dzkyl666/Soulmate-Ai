@@ -6,7 +6,6 @@ from typing import Literal
 
 import streamlit as st
 
-from soulmate.auth.user_store import UserStore
 from soulmate.core.exceptions import mask_secret
 from soulmate.core.settings import Settings
 from soulmate.services.container import ServiceContainer
@@ -62,7 +61,7 @@ def render_settings(svc: ServiceContainer, settings: Settings, user_id: str) -> 
         st.caption(f"记录了 {summary['days']} 天的使用情况（本地存储，最近 30 天）")
 
     # ── 管理员面板 ──
-    store = UserStore(svc.user_repo, settings)
+    store = svc.auth
     if store.is_admin(user_id):
         with st.expander("👑 管理员：账号管理", expanded=False):
             st.caption("自助注册关闭时，用这里开新号。")

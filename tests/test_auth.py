@@ -1,4 +1,4 @@
-"""auth 层测试：账号库 / 登录 / 注册开关 / 停用 / 会话令牌 / OIDC 映射。"""
+"""auth 层测试：账号库 / 登录 / 注册开关 / 停用 / 会话令牌 / OIDC 映射 / AuthService 门面。"""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ from soulmate.core.exceptions import (
     ValidationError,
 )
 from soulmate.core.settings import Settings
+from soulmate.services.auth_service import AuthService
 from soulmate.storage.repositories import UserRepository
 
 GOOD_PW = "Passw0rd123"
@@ -236,3 +237,80 @@ class TestSessionTokens:
     def test_garbage_rejected(self, settings):
         assert read_session_token("nonsense", settings) is None
         assert read_session_token("", settings) is None
+
+
+# ══════════════════════════════════════════════════════════
+# AuthService 门面（ui 只依赖它，不再直接碰 UserStore/UserRepository）
+# ══════════════════════════════════════════════════════════
+class TestAuthServiceFacade:
+    """这一层存在的唯一理由是**消掉 ui → storage 越层**。
+
+    所以这些测试要证明：UI 需要的每个能力，门面都透出来了，
+    而且能脱离 ServiceContainer 独立构造（登录前就要用）。
+    """
+
+    def test_constructible_without_container(self, settings):
+        """登录门场景：还没有 user_id，必须能只凭 settings 构造。"""
+        auth = AuthService(settings)
+        assert auth.needs_bootstrap() is True
+        assert auth.count() == 0
+
+    def test_bootstrap_then_authenticate_roundtrip(self, settings):
+        auth = AuthService(settings)
+        user = auth.bootstrap("admin", GOOD_PW)
+        assert user.role == "admin"
+        assert auth.needs_bootstrap() is False
+        assert auth.is_admin("admin") is True
+        assert auth.authenticate("admin", GOOD_PW).username == "admin"
+
+    def test_register_and_duplicate(self, settings):
+        auth = AuthService(settings)
+        auth.bootstrap("admin", GOOD_PW)
+        assert auth.register("bob", GOOD_PW).role == "user"
+        with pytest.raises(ValidationError):
+            auth.register("bob", GOOD_PW)
+
+    def test_register_respects_closed_signup(self, settings):
+        strict = Settings(
+            env="test",
+            app_secret="s" * 48,
+            data_dir=settings.data_root(),
+            allow_signup=False,
+            legacy_session_dir=settings.legacy_session_dir,
+        )
+        auth = AuthService(strict)
+        auth.bootstrap("admin", GOOD_PW)
+        with pytest.raises(RegistrationDisabled):
+            auth.register("bob", GOOD_PW)
+
+    def test_admin_actions_exposed(self, settings):
+        auth = AuthService(settings)
+        auth.bootstrap("admin", GOOD_PW)
+        assert auth.admin_create_user("bob", GOOD_PW).username == "bob"
+        assert {u.username for u in auth.list_users()} == {"admin", "bob"}
+        auth.set_disabled("bob", True)
+        with pytest.raises(AccountDisabled):
+            auth.authenticate("bob", GOOD_PW)
+        auth.set_disabled("bob", False)
+        assert auth.authenticate("bob", GOOD_PW).username == "bob"
+        auth.delete_user("bob")
+        assert [u.username for u in auth.list_users()] == ["admin"]
+
+    def test_admin_create_user_role_is_typed(self, settings):
+        auth = AuthService(settings)
+        auth.bootstrap("admin", GOOD_PW)
+        assert auth.admin_create_user("boss", GOOD_PW, role="admin").role == "admin"
+
+    def test_oidc_user_path(self, settings):
+        auth = AuthService(settings)
+        u = auth.ensure_oidc_user(username="oidc_alice_abc", oidc_sub="a@x.com", display_name="a@x.com")
+        assert u.role == "admin" and u.oidc_sub == "a@x.com"
+        # 幂等
+        assert auth.ensure_oidc_user(username="oidc_alice_abc", oidc_sub="a@x.com", display_name="a").username == u.username
+        assert auth.count() == 1
+
+    def test_container_exposes_the_same_facade(self, container):
+        """登录后走容器上的同一套接口（sidebar/settings 用）。"""
+        assert isinstance(container.auth, AuthService)
+        container.auth.bootstrap("admin", GOOD_PW)
+        assert container.auth.is_admin("admin") is True

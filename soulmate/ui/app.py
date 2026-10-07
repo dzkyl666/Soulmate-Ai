@@ -16,12 +16,11 @@ import logging
 import streamlit as st
 
 from soulmate.auth import oidc
-from soulmate.auth.user_store import UserStore
 from soulmate.core.logging import get_logger, set_request_id, setup_logging
 from soulmate.core.settings import get_settings
 from soulmate.services import migration
+from soulmate.services.auth_service import AuthService
 from soulmate.services.container import get_container_singleton
-from soulmate.storage.repositories import UserRepository
 from soulmate.ui import theme as ui_theme
 from soulmate.ui.auth_page import render_login_page
 from soulmate.ui.chat import render_chat
@@ -77,7 +76,8 @@ def run() -> None:
 def _require_auth(settings):
     """返回已认证 user_id；未通过时渲染登录页并返回 None。"""
     oidc_usable = settings.auth_mode in ("oidc", "hybrid") and oidc.oidc_configured()
-    store = UserStore(UserRepository(settings.data_root()), settings)
+    # 走 services 门面拿认证能力（不再自己拼 UserStore + UserRepository —— 那是 ui→storage 越层）
+    auth = AuthService(settings)
 
     if oidc_usable:
         oidc.run_login()
@@ -87,7 +87,7 @@ def _require_auth(settings):
             st.stop()
             return None
         username = oidc.stable_username(identity)
-        store.ensure_oidc_user(
+        auth.ensure_oidc_user(
             username=username,
             oidc_sub=str(identity.get("email") or identity.get("sub") or ""),
             display_name=oidc.display_name(identity),
