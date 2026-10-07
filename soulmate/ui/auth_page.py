@@ -4,16 +4,21 @@
 - 一个用户都没有 → 「创建管理员账号」（bootstrap，首个用户自动 admin）
 - 有用户 → 「登录」，若开放注册再加「注册」标签
 - 返回登录成功的 username，由 app.py 写入 session_state 完成登录
+
+【★ UI 边界的异常策略：统一捕 `SoulmateError`，不逐个捕具体子类】
+见 `soulmate/ui/boundary.py` 的模块 docstring（含一次真实事故的复盘）。
+简言之：`RateLimitError` 不是 `AuthError` 的子类，逐个捕会让"连点登录触发限流"
+直接冒到 Streamlit 变成整页红框。本页三个表单统一走 `boundary.guard()`。
 """
 
 from __future__ import annotations
 
 import streamlit as st
 
-from soulmate.core.exceptions import AuthError, RegistrationDisabled, ValidationError
 from soulmate.core.logging import get_logger
 from soulmate.core.settings import Settings
 from soulmate.services.auth_service import AuthService
+from soulmate.ui.boundary import guard
 
 log = get_logger("soulmate.ui.auth_page")
 
@@ -28,11 +33,9 @@ def _login_flow(settings: Settings) -> None:
     st.markdown("### 🔐 欢迎回来")
     username = st.text_input("用户名", key="login_user", autocomplete="username")
     password = st.text_input("密码", type="password", key="login_pass", autocomplete="current-password")
-    if st.button("登录", type="primary", width="stretch"):
-        try:
-            user = _store(settings).authenticate(username, password)
-        except AuthError as exc:
-            st.error(exc.user_message())
+    if st.button("登录", type="primary", width="stretch", key="login_submit"):
+        user = guard(lambda: _store(settings).authenticate(username, password), what="登录")
+        if user is None:
             return
         st.session_state["user_id"] = user.username
         st.rerun()
@@ -47,17 +50,12 @@ def _register_flow(settings: Settings) -> None:
         autocomplete="new-password",
     )
     confirm = st.text_input("确认密码", type="password", key="reg_confirm", autocomplete="new-password")
-    if st.button("注册并登录", type="primary", width="stretch"):
+    if st.button("注册并登录", type="primary", width="stretch", key="register_submit"):
         if password != confirm:
             st.error("两次输入的密码不一致")
             return
-        try:
-            user = store.register(username, password)
-        except RegistrationDisabled:
-            st.error("当前未开放注册，请联系管理员开号")
-            return
-        except ValidationError as exc:
-            st.error(exc.user_message())
+        user = guard(lambda: store.register(username, password), what="注册")
+        if user is None:
             return
         st.session_state["user_id"] = user.username
         st.rerun()
@@ -76,14 +74,12 @@ def render_login_page(settings: Settings) -> bool:
         username = st.text_input("管理员用户名", key="boot_user")
         password = st.text_input("密码", type="password", key="boot_pass", autocomplete="new-password")
         confirm = st.text_input("确认密码", type="password", key="boot_confirm", autocomplete="new-password")
-        if st.button("创建并进入", type="primary", width="stretch"):
+        if st.button("创建并进入", type="primary", width="stretch", key="bootstrap_submit"):
             if password != confirm:
                 st.error("两次输入的密码不一致")
                 return False
-            try:
-                user = store.bootstrap(username, password)
-            except ValidationError as exc:
-                st.error(exc.user_message())
+            user = guard(lambda: store.bootstrap(username, password), what="初始化管理员")
+            if user is None:
                 return False
             st.session_state["user_id"] = user.username
             st.session_state["_first_run"] = True

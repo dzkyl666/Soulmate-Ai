@@ -143,6 +143,14 @@ grep -rn "^import streamlit" soulmate/ | grep -v "^soulmate/ui/"
 
 - `st.session_state` 是动态字典，取出来的值是 `Any`。UI 层统一在入口处**显式收敛类型**（`str(...)`、None 守卫），避免到处写 cast。
 - 主题偏好存在 `profile.json`，启动时 `apply_saved_theme()` 先应用再 rerun —— 修掉了旧版「重启回默认主题」的问题。
+- **`ui/boundary.py`：UI 边界只捕根异常 `SoulmateError`**，不逐个捕具体子类。
+  理由是一次真实事故：`RateLimitError` 是 `SoulmateError` 的直接子类、**不是** `AuthError` 的子类，
+  而登录页写的是 `except AuthError` → 用户连点登录触发限流时异常冒到 Streamlit，**整页红框**。
+  边界捕根异常后，「新增一种异常」不再等于「新增一个页面崩溃入口」。
+  `boundary.guard()` 把「捕什么、怎么显示」收敛到一处，三个认证表单 + 弹窗保存 + 消息校验共用它。
+  已知的有意例外（`chat.py` 的记忆抽取静默、AI 起名按类型分级提示）在该模块 docstring 里写明。
+  这条策略有 **AppTest 守着**：`TestLoginRateLimitOnPage` 连点 (限额+1) 次并断言
+  「无异常 + 出现限流文案」—— 已实测「改回窄捕获它变红、修好它变绿」。
 
 ---
 

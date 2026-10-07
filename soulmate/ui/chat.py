@@ -18,6 +18,7 @@ from soulmate.core.settings import Settings
 from soulmate.llm.types import ChunkEvent, EndEvent, ErrorEvent, FallbackEvent
 from soulmate.services.container import ServiceContainer
 from soulmate.ui import dialogs
+from soulmate.ui.boundary import guard
 
 
 def _log(ctx: str, msg: str) -> None:
@@ -127,12 +128,11 @@ def render_chat(svc: ServiceContainer, settings: Settings) -> None:
             _render_normal_messages(companion.avatar, companion.name, profile, messages, cid, sid, svc)
 
     # ── 输入区 ──
-    prompt = st.chat_input("请输入你的问题", max_chars=settings.max_message_chars)
-    if prompt:
-        try:
-            prompt = _validate_prompt(prompt, settings)
-        except ValidationError as exc:
-            st.error(exc.user_message())
+    typed = st.chat_input("请输入你的问题", max_chars=settings.max_message_chars)
+    if typed:
+        # 边界统一捕 SoulmateError（见 ui/boundary.py）
+        prompt = guard(lambda: _validate_prompt(typed, settings), what="消息校验")
+        if prompt is None:
             return
         _send_and_stream(svc, settings, companion, provider, fallback, profile, messages, cid, sid, prompt)
     elif st.session_state.get("_retry") and messages and messages[-1].role == "user":

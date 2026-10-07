@@ -346,6 +346,16 @@ CAPABILITIES: list[Capability] = [
         },
         why="ui 不许直连 storage，必须经由 AuthService 门面（本轮修复的越层）",
     ),
+    Capability(
+        name="UI 边界异常兜底",
+        symbol="guard",
+        required_callers={
+            "soulmate/ui/auth_page.py",
+            "soulmate/ui/dialogs.py",
+            "soulmate/ui/chat.py",
+        },
+        why="P1 回归：边界只捕具体子类时，RateLimitError/StorageError 会冒成整页红框",
+    ),
 ]
 
 
@@ -406,6 +416,14 @@ CAPABILITY_EVIDENCE: list[tuple[str, str]] = [
     ("AuthService 门面可用", "tests/test_auth.py::TestAuthServiceFacade::test_bootstrap_then_authenticate_roundtrip"),
     ("UI 首屏能启动", "tests/test_apptest.py::TestAuthenticatedApp::test_boots_to_onboarding_without_providers"),
     ("生产配置 fail-fast", "tests/test_apptest.py::TestProductionGuard::test_production_misconfig_shows_error_page"),
+    (
+        "UI 边界兜住限流（P1 回归）",
+        "tests/test_apptest.py::TestLoginRateLimitOnPage::test_repeated_login_clicks_show_hint_not_crash",
+    ),
+    (
+        "限额之内不误报限流",
+        "tests/test_apptest.py::TestLoginRateLimitOnPage::test_first_attempts_show_wrong_password_not_rate_limit",
+    ),
 ]
 
 

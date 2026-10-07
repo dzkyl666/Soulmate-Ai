@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from soulmate.core.exceptions import ValidationError, mask_secret
+from soulmate.core.exceptions import mask_secret
 from soulmate.core.presets import (
     DEFAULT_SYSTEM_PROMPT,
     EMOJI_OPTIONS,
@@ -19,6 +19,7 @@ from soulmate.core.presets import (
 )
 from soulmate.services.container import ServiceContainer
 from soulmate.ui import theme as ui_theme
+from soulmate.ui.boundary import guard
 
 
 def _svc() -> ServiceContainer:
@@ -108,10 +109,10 @@ def _provider_form(provider: dict, prefix: str) -> dict:
 def _save_provider(prefix: str, provider: dict) -> None:
     svc = _svc()
     form = _provider_form(provider, prefix)
-    try:
-        svc.providers.upsert(form)
-    except ValidationError as exc:
-        st.error(exc.user_message())
+    # 边界统一捕 SoulmateError（见 ui/boundary.py）：
+    # upsert 会写盘，磁盘满/只读时抛的是 StorageError ——
+    # 只捕 ValidationError 的话这里会整页红框，与登录限流是同一类缺口。
+    if guard(lambda: svc.providers.upsert(form), what="保存模型服务") is None:
         return
     st.rerun()
 

@@ -74,6 +74,68 @@ class TestLoginScreen:
         assert any("用户名" in x for x in labels), labels
 
 
+class TestLoginRateLimitOnPage:
+    """★ P1 回归：连点登录触发限流时，页面必须**显示提示**而不是整页红框。
+
+    【这条为什么必须是 AppTest，而不是单元测试】
+    `RateLimitError` 是 `SoulmateError` 的直接子类，**不是** `AuthError` 的子类。
+    登录页原先写的是 `except AuthError` → 限流异常不被接住 → 冒到 Streamlit → 整页红框。
+
+    单元测试测不到这个：`UserStore.authenticate()` 抛 RateLimitError 是**正确行为**，
+    单测里那是通过。真正的缺陷在「UI 边界捕得太窄」这一层，
+    只有把页面真跑起来、真点按钮才能暴露。
+
+    这类回归以前要靠验收方手动连点 11 次才发现，现在由本用例挡住。
+    """
+
+    def test_repeated_login_clicks_show_hint_not_crash(self, isolated_data_dir):
+        settings = get_settings()
+        store = UserStore(UserRepository(settings.data_root()), settings)
+        store.admin_create_user("victim", GOOD_PW)
+
+        # 点 (限额+1) 次；默认限额 10 → 11 次（第 11 次必被限流）
+        limit = settings.rate_limit_login_per_minute
+        assert limit == 10, f"本用例按默认限额 10 设计，当前是 {limit}"
+
+        at = _fresh_app()
+        assert not at.exception, [str(e) for e in at.exception]
+
+        # 必须用**错误密码**：正确密码第一次就会登录成功、离开登录页，
+        # 后面就没有"连点"可言了。错误密码也恰好模拟爆破。
+        for i in range(limit + 1):
+            at.text_input(key="login_user").set_value("victim")
+            at.text_input(key="login_pass").set_value("definitely-wrong-password")
+            at.button(key="login_submit").click()
+            at.run()
+
+            # 每一次点击后页面都不允许抛异常（这就是 P1 的断言点）
+            assert not at.exception, (
+                f"第 {i + 1} 次点登录后页面抛异常 → 说明 UI 边界没接住："
+                f"{[str(e) for e in at.exception]}"
+            )
+
+        # 第 limit+1 次必须看到限流文案（来自 RateLimitError.user_message()）
+        shown = " ".join(e.value for e in at.error)
+        assert "操作太频繁" in shown, f"未出现限流提示，实际错误提示为：{shown!r}"
+
+    def test_first_attempts_show_wrong_password_not_rate_limit(self, isolated_data_dir):
+        """反向断言：限额之内应该是"密码不正确"，别把限流提示提前打出来。"""
+        settings = get_settings()
+        store = UserStore(UserRepository(settings.data_root()), settings)
+        store.admin_create_user("victim2", GOOD_PW)
+
+        at = _fresh_app()
+        at.text_input(key="login_user").set_value("victim2")
+        at.text_input(key="login_pass").set_value("wrong")
+        at.button(key="login_submit").click()
+        at.run()
+
+        assert not at.exception, [str(e) for e in at.exception]
+        shown = " ".join(e.value for e in at.error)
+        assert "用户名或密码不正确" in shown, shown
+        assert "操作太频繁" not in shown, "第一次点击不该触发限流"
+
+
 class TestAuthenticatedApp:
     def test_boots_to_onboarding_without_providers(self, isolated_data_dir):
         """已登录 + 没有任何模型服务 → 主区显示第一步引导，不报错。"""
