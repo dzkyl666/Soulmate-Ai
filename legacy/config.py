@@ -91,6 +91,12 @@ PROVIDER_PRESETS = {
         "env_key": "ZHIPUAI_API_KEY",
         "models": ["glm-4-air", "glm-4-flash"],
     },
+    "gemini-proxy": {
+        "name": "Gemini 反代（OpenAI 兼容中转）",
+        "base_url": "http://172.98.60.173:8045/v1",
+        "env_key": "GEMINI_PROXY_API_KEY",
+        "models": ["gemini-3.8-flash-high"],
+    },
     "custom": {
         "name": "自定义（OpenAI 兼容）",
         "base_url": "",
