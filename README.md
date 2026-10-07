@@ -300,9 +300,17 @@ soulmate migrate --user bob          # 把 v1 老数据搬进 bob 的目录
 - **`llm/` 是全项目唯一 `import openai` 的地方** —— 将来接 Function Calling、换 SDK、适配厂商差异都只改这一层。
 - **`core/` 不 import 任何业务模块** —— 所以它最好测（不需要 mock 全世界）。
 - **UI 层只调 services** —— 页面里不会出现 `open(path)` 或 `client.chat.completions`。
+  （仅两处**有理由的**跨层例外：`llm.types` 流式事件协议、`auth.oidc` 登录适配器，
+  两者都在 `scripts/verify.py` 的模块级白名单里，并写明了理由。）
 - **系统提示词每次请求现拼** —— 昵称和长期记忆都是「会变的全局状态」，现拼永远同步，不用回写伴侣数据。
 
 详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+
+### 分层是**机器校验**的，不是靠自觉
+
+`scripts/verify.py` 用 **AST**（不是正则）扫全量依赖边，断言六层两两组合都合规、
+断言关键能力（限流/脱敏/缓存/诊断/备份/认证门面）在业务层**真的被调用**
+（不是「存在」），并给每条宣称的能力挂一个真实测试。详见下一节。
 
 ---
 
@@ -312,12 +320,19 @@ soulmate migrate --user bob          # 把 v1 老数据搬进 bob 的目录
 pip install -e ".[dev]"        # 或 pip install -r requirements-dev.txt -r requirements.txt
 pre-commit install             # 可选：提交前自动检查
 
-ruff check soulmate tests main.py   # 代码规范 + 安全规则
-mypy soulmate main.py               # 类型检查
-pytest tests -q                     # 全部测试
-pytest tests -q --cov=soulmate      # 带覆盖率
-pytest tests/test_storage.py -v     # 只跑某一层
+ruff check soulmate tests main.py scripts   # 代码规范 + 安全规则
+mypy soulmate main.py                       # 类型检查
+pytest tests -q                             # 全部测试
+pytest tests -q --cov=soulmate              # 带覆盖率
+pytest tests/test_storage.py -v             # 只跑某一层
+
+python scripts/verify.py       # ★ 端到端验收（62 项，分强/中/弱三档）
 ```
+
+`scripts/verify.py` 会把结论**钉在当前 commit 上**（打印 SHA + 工作区是否干净），
+并按可信度分档汇报 —— 弱档多是「文件/字符串存在性」，证明不了行为，结论以强/中档为准。
+这个分档是刻意的：上一版验收脚本 50/50 全绿，却因为全是存在性检查，
+放过了「限流空转」和「UI 越层」两个真实缺陷。
 
 测试特点：
 
