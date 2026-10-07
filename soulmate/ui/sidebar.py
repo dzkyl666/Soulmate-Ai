@@ -78,8 +78,9 @@ def render_sidebar(svc: ServiceContainer, settings: Settings, user_id: str) -> s
             if svc.providers.list_providers():
                 if st.button("➕ 新建伴侣", width="stretch", type="secondary" if companions else "primary", key="add_companion_btn"):
                     dialogs.reset_form_keys("add_c")
+                    # ⚠️ 此后**不要**加 st.rerun()：@st.dialog 是声明式的，紧跟 rerun 会让
+                    # 新一次运行里按钮不再是「刚被点击」→ 弹窗一闪即退。详见 ui/dialogs.py 模块说明。
                     dialogs.add_companion_dialog()
-                    st.rerun()
             else:
                 st.caption("⬆️ 先在下面「模型服务」里添加一个，才能创建伴侣")
 
@@ -123,16 +124,16 @@ def render_sidebar(svc: ServiceContainer, settings: Settings, user_id: str) -> s
                         help=f"模型：{p.model}\n地址：{p.base_url}\nKey：{key_tail}",
                     ):
                         dialogs.reset_form_keys(f"edit_p_{p.id}")
+                        # ⚠️ 此后不要加 st.rerun()（会让弹窗一闪即退），见 ui/dialogs.py 模块说明
                         dialogs.edit_provider_dialog(p.model_dump())
-                        st.rerun()
                 with col2:
                     if st.button("", icon="🗑️", key=f"delp_{p.id}", help="删除这个模型服务"):
                         dialogs.delete_provider_dialog(p.model_dump())
 
             if st.button("➕ 添加模型服务", width="stretch", type="secondary" if svc.providers.list_providers() else "primary", key="add_provider_btn"):
                 dialogs.reset_form_keys("add_p")
+                # ⚠️ 此后不要加 st.rerun()（会让弹窗一闪即退），见 ui/dialogs.py 模块说明
                 dialogs.add_provider_dialog()
-                st.rerun()
 
         # ── 聊天设置 ──
         with st.expander("聊天设置"):
@@ -181,8 +182,8 @@ def render_sidebar(svc: ServiceContainer, settings: Settings, user_id: str) -> s
         label = profile.nickname or "我"
         st.caption(f"👤 {profile.avatar or '🐶'} **{label}**（{user_id}）")
         if st.button("👤 编辑我的资料", width="stretch", key="edit_profile_btn"):
+            # ⚠️ 此后不要加 st.rerun()（会让弹窗一闪即退），见 ui/dialogs.py 模块说明
             dialogs.edit_profile_dialog()
-            st.rerun()
 
         # 管理员快捷：进设置页管理账号
         if _is_admin(svc, user_id):

@@ -20,8 +20,8 @@ def render_settings(svc: ServiceContainer, settings: Settings, user_id: str) -> 
         st.write(f"昵称：**{profile.nickname or '（未设置）'}**　头像：{profile.avatar or '🐶'}　主题：**{profile.theme}**")
         if st.button("✏️ 编辑资料", key="settings_edit_profile"):
             dialogs.reset_form_keys("prof")
+            # ⚠️ 此后不要加 st.rerun()（会让弹窗一闪即退），见 ui/dialogs.py 模块说明
             dialogs.edit_profile_dialog()
-            st.rerun()
 
     with st.expander("📤 导出当前会话", expanded=True):
         cid = str(st.session_state.get("_companion_id") or "")

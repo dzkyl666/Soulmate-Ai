@@ -18,6 +18,7 @@ from streamlit.testing.v1 import AppTest  # noqa: E402
 
 from soulmate.auth.user_store import UserStore  # noqa: E402
 from soulmate.core.settings import get_settings  # noqa: E402
+from soulmate.services.container import ServiceContainer  # noqa: E402
 from soulmate.storage.repositories import UserRepository  # noqa: E402
 
 GOOD_PW = "Passw0rd123"
@@ -196,3 +197,155 @@ class TestProductionGuard:
         assert not at.exception, [str(e) for e in at.exception]
         errors = " ".join(e.value for e in at.error)
         assert "生产配置" in errors or "拒绝启动" in errors, errors
+
+
+# ══════════════════════════════════════════════════════════════
+# ★ P0-2 回归：弹窗**必须真的能打开**
+# ══════════════════════════════════════════════════════════════
+def _button_keys(at: AppTest) -> set[str]:
+    """当前元素树里所有按钮的 key。"""
+    return {k for k in (getattr(b, "key", None) for b in at.button) if k}
+
+
+def _input_keys(at: AppTest) -> set[str]:
+    return {k for k in (getattr(t, "key", None) for t in at.text_input) if k}
+
+
+def _make_user(name: str) -> None:
+    settings = get_settings()
+    UserStore(UserRepository(settings.data_root()), settings).admin_create_user(name, GOOD_PW)
+
+
+class TestDialogsActuallyOpen:
+    """★ 点「添加 / 编辑」之后，弹窗内容必须在元素树里出现。
+
+    【为什么以前 273 条测试一条都没抓到这个 P0】
+    因为**没有一条测试覆盖「弹窗能不能打开」**。这个 bug 的形态很坏：
+    - 它**不抛异常**（服务端 Traceback 计数 = 0），`at.exception` 永远是空的
+    - 它也不报错到界面，只是弹窗"闪一下就没了"
+    所以单元测试、静态检查、甚至「页面能渲染」级别的 AppTest 全都会放它过去。
+    只有"点一下按钮、再看弹窗里的控件在不在"这种**交互级**断言才抓得住。
+
+    【怎么断言「弹窗开了」】
+    这个 Streamlit 版本的 AppTest **不暴露 dialog 元素**（没有 `at.dialog`），
+    但**弹窗内部渲染的 widget 会进元素树**。所以用弹窗里的标志性控件当探针：
+    `add_p_save` / `add_c_save` / `prof_save` 出现 = 弹窗真的打开了；
+    弹窗一闪即退时，这些 key 一个都不会出现（已实测：点之前确实一个都没有）。
+
+    【覆盖的就是那 7 处出问题的调用点】
+    sidebar（新建伴侣 / 编辑模型 / 添加模型 / 编辑资料）、settings_page（编辑资料）、
+    chat（引导第一步加模型 / 第二步建伴侣）。
+    其中 chat 那两处最严重 —— 它们是**新用户完成初始化的唯一入口**。
+    """
+
+    def test_onboarding_add_provider_dialog_opens(self, isolated_data_dir):
+        """引导第一步：没有模型服务时，「➕ 添加模型服务」必须能弹出表单。
+
+        这处坏了 = 新用户永远走不完初始化（本次线上事故的直接原因之一）。
+        """
+        _make_user("dlg_onboard_p")
+        at = _logged_in_app("dlg_onboard_p")
+        assert not at.exception, [str(e) for e in at.exception]
+        assert "add_p_save" not in _button_keys(at), "还没点，弹窗不该已在"
+
+        at.button(key="onboard_add_p").click()
+        at.run()
+
+        assert not at.exception, [str(e) for e in at.exception]
+        assert "add_p_save" in _button_keys(at), f"弹窗没打开（一闪即退）。按钮={sorted(_button_keys(at))}"
+        # 不只是按钮在，弹窗里的输入框也要齐（证明是完整渲染）
+        assert "add_p_base_url" in _input_keys(at), sorted(_input_keys(at))
+
+    def test_onboarding_add_companion_dialog_opens(self, isolated_data_dir):
+        """引导第二步：已有模型服务时，「➕ 新建伴侣」必须能弹出表单。"""
+        _make_user("dlg_onboard_c")
+        settings = get_settings()
+        ServiceContainer(settings, "dlg_onboard_c").providers.upsert(
+            {"preset": "custom", "base_url": "https://x.com/v1", "model": "m", "api_key": "k"}
+        )
+
+        at = _logged_in_app("dlg_onboard_c")
+        at.button(key="onboard_add_c").click()
+        at.run()
+
+        assert not at.exception, [str(e) for e in at.exception]
+        assert "add_c_save" in _button_keys(at), f"弹窗没打开。按钮={sorted(_button_keys(at))}"
+
+    def test_sidebar_add_provider_dialog_opens(self, isolated_data_dir):
+        _make_user("dlg_side_p")
+        at = _logged_in_app("dlg_side_p")
+        at.button(key="add_provider_btn").click()
+        at.run()
+
+        assert not at.exception, [str(e) for e in at.exception]
+        assert "add_p_save" in _button_keys(at), f"弹窗没打开。按钮={sorted(_button_keys(at))}"
+
+    def test_sidebar_edit_provider_dialog_opens(self, isolated_data_dir):
+        """编辑模型服务：Key 填错时的唯一补救入口（本次事故里也走不通）。"""
+        _make_user("dlg_edit_p")
+        settings = get_settings()
+        pid = ServiceContainer(settings, "dlg_edit_p").providers.upsert(
+            {"preset": "custom", "base_url": "https://x.com/v1", "model": "m", "api_key": "k"}
+        ).id
+
+        at = _logged_in_app("dlg_edit_p")
+        at.button(key=f"editp_{pid}").click()
+        at.run()
+
+        assert not at.exception, [str(e) for e in at.exception]
+        assert f"e_{pid}_save" in _button_keys(at), f"弹窗没打开。按钮={sorted(_button_keys(at))}"
+
+    def test_sidebar_add_companion_dialog_opens(self, isolated_data_dir):
+        _make_user("dlg_side_c")
+        settings = get_settings()
+        ServiceContainer(settings, "dlg_side_c").providers.upsert(
+            {"preset": "custom", "base_url": "https://x.com/v1", "model": "m", "api_key": "k"}
+        )
+
+        at = _logged_in_app("dlg_side_c")
+        at.button(key="add_companion_btn").click()
+        at.run()
+
+        assert not at.exception, [str(e) for e in at.exception]
+        assert "add_c_save" in _button_keys(at), f"弹窗没打开。按钮={sorted(_button_keys(at))}"
+
+    def test_sidebar_edit_profile_dialog_opens(self, isolated_data_dir):
+        _make_user("dlg_prof_side")
+        at = _logged_in_app("dlg_prof_side")
+        at.button(key="edit_profile_btn").click()
+        at.run()
+
+        assert not at.exception, [str(e) for e in at.exception]
+        assert "prof_save" in _button_keys(at), f"弹窗没打开。按钮={sorted(_button_keys(at))}"
+        assert "prof_nickname" in _input_keys(at), sorted(_input_keys(at))
+
+    def test_settings_page_edit_profile_dialog_opens(self, isolated_data_dir):
+        _make_user("dlg_prof_set")
+        at = _logged_in_app("dlg_prof_set", _page_radio="⚙️ 设置")
+        at.button(key="settings_edit_profile").click()
+        at.run()
+
+        assert not at.exception, [str(e) for e in at.exception]
+        assert "prof_save" in _button_keys(at), f"弹窗没打开。按钮={sorted(_button_keys(at))}"
+
+    def test_delete_dialog_still_opens(self, isolated_data_dir):
+        """对照组：删除类弹窗本来就正常 —— 这解释了这个 bug 为什么像"偶发"。
+
+        当初的现象是「删除都能用、只有添加/编辑一闪即退」，
+        很容易被当成"点太快了"而不是 bug。把对照组也钉住，
+        以后谁改坏了删除弹窗，这里会立刻红。
+        """
+        _make_user("dlg_del")
+        settings = get_settings()
+        pid = ServiceContainer(settings, "dlg_del").providers.upsert(
+            {"preset": "custom", "base_url": "https://x.com/v1", "model": "m", "api_key": "k"}
+        ).id
+
+        at = _logged_in_app("dlg_del")
+        at.button(key=f"delp_{pid}").click()
+        at.run()
+
+        assert not at.exception, [str(e) for e in at.exception]
+        keys = _button_keys(at)
+        # 删除弹窗里的「确认」按钮是 dp_c_<id>（取消是 dp_x_<id>）
+        assert f"dp_c_{pid}" in keys, f"删除弹窗没打开。按钮={sorted(keys)}"

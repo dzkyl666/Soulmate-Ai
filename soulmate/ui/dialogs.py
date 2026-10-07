@@ -3,6 +3,37 @@
 套路统一：画字段 → 校验 → 写进服务 → st.rerun()。
 弹窗之间不嵌套（Streamlit 同一时刻只能开一个对话框）。
 校验失败用 st.error 就地显示，不打断对话框。
+
+★ `st.rerun()` 该写在哪里（踩过一次 P0，别再犯）
+
+`@st.dialog` 是**声明式**的：调用 `add_provider_dialog()` 之后，弹窗在**本次运行**里
+渲染出来。所以：
+
+    ✅ 正确：在**调用点**只调用，不 rerun
+        if st.button("➕ 添加模型服务", key="add_provider_btn"):
+            dialogs.reset_form_keys("add_p")
+            dialogs.add_provider_dialog()
+
+    ❌ 错误：调用点后面紧跟 st.rerun()
+        if st.button(...):
+            dialogs.add_provider_dialog()
+            st.rerun()          # ← 立刻开新一次运行；新运行里按钮已不是「刚被点击」
+                                #   → 弹窗不再被打开 → **一闪即退**（且不报错，静默失败）
+
+    ✅ 正确：rerun 放在**弹窗内部**、保存成功之后（见本文件的 _save_provider 等）
+        if st.button("保存"):
+            ...写服务...
+            st.rerun()          # 关掉弹窗 + 刷新主界面
+
+【为什么这个 bug 特别隐蔽】
+它不抛异常（服务端 Traceback 数为 0），只是弹窗"闪一下就没了"；
+而删除类弹窗恰好没写多余的 rerun，所以**只有「添加/编辑」入口全废、删除却正常** ——
+很容易被误判成"偶发"。
+最严重的后果：`ui/chat.py` 的引导第一步「添加模型服务」也是这么写的，
+导致**新用户永远无法完成初始化**。
+
+防回归：`scripts/verify.py` 用 AST 扫「弹窗调用后紧跟 st.rerun()」，
+`tests/test_apptest.py` 有交互级断言（弹窗内容必须真的出现）。
 """
 
 from __future__ import annotations

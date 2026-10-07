@@ -280,13 +280,14 @@ def _render_onboarding(svc: ServiceContainer) -> None:
     if not svc.providers.list_providers():
         st.write("**第一步：先接入一个模型服务。** 填入 Base URL / API Key / 模型名就能接入任意 OpenAI 兼容服务。")
         if st.button("➕ 添加模型服务", type="primary", key="onboard_add_p"):
+            # ⚠️ 此后不要加 st.rerun() —— 这行曾让**新用户永远走不完初始化**，
+            # 因为这是引导第一步唯一的入口。见 ui/dialogs.py 模块说明。
             dialogs.add_provider_dialog()
-            st.rerun()
         return
     st.write("**第二步：创建一个伴侣。** 给 TA 起名字、写人设、挑头像，并绑定模型服务。")
     if st.button("➕ 新建伴侣", type="primary", key="onboard_add_c"):
+        # ⚠️ 此后不要加 st.rerun()（会让弹窗一闪即退），见 ui/dialogs.py 模块说明
         dialogs.add_companion_dialog()
-        st.rerun()
 
 
 def handle_new_session(svc: ServiceContainer) -> None:
