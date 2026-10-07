@@ -199,6 +199,93 @@ class TestInternalAddressPredicate:
             assert validation.validate_base_url(url, allow_private=True), key
 
 
+class TestIpv4EmbeddedInIpv6:
+    """★ 覆盖「把内网 IPv4 藏进 IPv6 字面量」的**四种**写法。
+
+    【为什么需要这一组】
+    上一轮把 `is_private` 换成显式网段表（修好了 Teredo / fake-IP 误拦），
+    但「IPv4 嵌进 IPv6」当时只处理了 `::ffff:`（IPv4-mapped）一种，
+    另外三种写法可以直接绕过检查。
+
+    【为什么必须双向断言】
+    上一轮的教训就是「语义过宽导致公网被误拦」（api.openai.com 被自己的
+    SSRF 检查拦掉）。所以这里**每组都配反向用例**：真公网 IPv6、以及
+    NAT64/6to4 里嵌**公网** IPv4 的写法，都必须放行。
+    只测「该拦的拦住了」是单向的，会把误拦漏过去。
+    """
+
+    # ── 该拦的：四种写法各覆盖，并覆盖两个不同的内网地址 ──
+    @pytest.mark.parametrize(
+        ("addr", "form"),
+        [
+            ("::ffff:127.0.0.1", "① IPv4-mapped（点分）"),
+            ("::ffff:7f00:1", "① IPv4-mapped（十六进制）"),
+            ("::ffff:10.0.0.5", "① IPv4-mapped 内嵌 RFC1918"),
+            ("::127.0.0.1", "② IPv4-compatible（点分）"),
+            ("::7f00:1", "② IPv4-compatible（十六进制）"),
+            ("::a00:5", "② IPv4-compatible 内嵌 10.0.0.5"),
+            ("64:ff9b::7f00:1", "③ NAT64 WKP（十六进制）"),
+            ("64:ff9b::127.0.0.1", "③ NAT64 WKP（点分）"),
+            ("64:ff9b::a00:5", "③ NAT64 内嵌 10.0.0.5"),
+            ("2002:7f00:1::", "④ 6to4 内嵌 127.0.0.1"),
+            ("2002:a00:5::", "④ 6to4 内嵌 10.0.0.5"),
+            ("2002:c0a8:101::", "④ 6to4 内嵌 192.168.1.1"),
+        ],
+    )
+    def test_embedded_private_ipv4_is_internal(self, addr, form):
+        assert validation.is_internal_address(addr) is True, f"{form} 应判为内网"
+
+    # ── 该放的：真公网 IPv6 + 内嵌公网 IPv4 的四种写法 ──
+    @pytest.mark.parametrize(
+        ("addr", "form"),
+        [
+            ("2606:4700:4700::1111", "Cloudflare 公网 IPv6"),
+            ("2001:4860:4860::8888", "Google 公网 IPv6"),
+            ("2400:3200::1", "阿里公网 IPv6"),
+            ("2606:4700::1111", "需求文档点名的反向用例"),
+            ("::ffff:93.184.216.34", "① 内嵌公网"),
+            ("::808:808", "② 内嵌 8.8.8.8"),
+            ("64:ff9b::808:808", "③ NAT64 内嵌 8.8.8.8"),
+            ("2002:808:808::", "④ 6to4 内嵌 8.8.8.8"),
+        ],
+    )
+    def test_public_or_embedded_public_is_allowed(self, addr, form):
+        """★ 反向用例：这些**必须放行**，否则就是重犯「语义过宽」的老错。"""
+        assert validation.is_internal_address(addr) is False, f"{form} 不该被判为内网"
+
+    def test_unspecified_and_loopback_keep_their_own_ruling(self):
+        """`::` 与 `::1` 有专门判定，不该被当成 IPv4-compatible 的 0.0.0.0 / 0.0.0.1。"""
+        assert validation.is_internal_address("::") is True
+        assert validation.is_internal_address("::1") is True
+
+    def test_embedded_extraction_is_exact(self):
+        """直接验证「解出来的内嵌地址」是否正确 —— 比对式断言更能定位错在哪。"""
+        import ipaddress as ipa
+
+        cases = [
+            ("::ffff:127.0.0.1", "127.0.0.1"),
+            ("::7f00:1", "127.0.0.1"),
+            ("64:ff9b::7f00:1", "127.0.0.1"),
+            ("2002:7f00:1::", "127.0.0.1"),
+            ("2002:c0a8:101::", "192.168.1.1"),
+            ("64:ff9b::808:808", "8.8.8.8"),
+            ("2606:4700::1111", None),  # 不含内嵌 IPv4
+            ("::", None),               # 未指定：另有判定，不算内嵌
+            ("::1", None),              # 回环：另有判定，不算内嵌
+        ]
+        for addr, expected in cases:
+            # 直接测提取逻辑本身（比对式断言能定位到"错在哪一段"，比只看 bool 有用）
+            got = validation._embedded_ipv4(ipa.ip_address(addr))
+            assert (str(got) if got is not None else None) == expected, addr
+
+    def test_full_url_with_embedded_private_literal_is_blocked(self):
+        """端到端：把嵌入写法放进 base_url，也要被 validate_base_url 拦住。"""
+        with pytest.raises(ValidationError):
+            validation.validate_base_url("http://[::ffff:127.0.0.1]:8000/v1", allow_private=False)
+        with pytest.raises(ValidationError):
+            validation.validate_base_url("http://[64:ff9b::7f00:1]:8000/v1", allow_private=False)
+
+
 class TestValidateOther:
     def test_username_normalises_and_validates(self):
         assert validation.validate_username("  Alice_01 ") == "alice_01"

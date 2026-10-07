@@ -94,21 +94,54 @@ _INTERNAL_NETWORKS_V6 = (
     ipaddress.ip_network("ff00::/8"),         # 组播
 )
 
+# ── IPv4 嵌入 IPv6 的写法（用于解出内嵌地址再递归判定）──
+#
+# 攻击者可以把内网 IPv4「藏」进 IPv6 字面量来绕过检查。共四种写法：
+#   ① ::ffff:a.b.c.d      IPv4-mapped（最常用）       → IPv6Address.ipv4_mapped
+#   ② ::a.b.c.d            IPv4-compatible（已废弃）   → ::/96，低 32 位
+#   ③ 64:ff9b::a.b.c.d     NAT64 well-known prefix     → 64:ff9b::/96，低 32 位
+#   ④ 2002:a.b.c.d::       6to4                        → IPv6Address.sixtofour
+#
+# 注意三点：
+#   · `IPv6Address.ipv4_mapped` 只覆盖①，其余三种必须自己解；
+#   · `ipv4_compat` 属性在 Python 3.12 已不存在，所以②用位运算；
+#   · **Teredo(2001::/32) 有意不处理** —— 它正是上一轮为修「api.openai.com
+#     被误拦」而从「内网」里排除的那一段。Teredo 是过渡机制、目标是公网，
+#     不是内网服务；若在此解它的内嵌地址，会把那个误拦重新引回来。
+_IPV4_COMPAT_NET = ipaddress.ip_network("::/96")
+_NAT64_WKP_NET = ipaddress.ip_network("64:ff9b::/96")
+
+
+def _embedded_ipv4(ip: ipaddress.IPv6Address) -> ipaddress.IPv4Address | None:
+    """从 IPv6 字面量里解出内嵌的 IPv4（四种写法），解不出返回 None。"""
+    # ① IPv4-mapped ::ffff:a.b.c.d
+    if ip.ipv4_mapped is not None:
+        return ip.ipv4_mapped
+    # ② IPv4-compatible ::a.b.c.d（已废弃，但解析器仍接受，所以仍要拦）
+    #    排除 :: 与 ::1：它们是「未指定 / 回环」，有各自的专门判定，不该被解释成 0.0.0.0/0.0.0.1
+    if ip in _IPV4_COMPAT_NET and int(ip) > 1:
+        return ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)
+    # ③ NAT64 well-known prefix 64:ff9b::a.b.c.d（IPv6-only 云环境常见）
+    if ip in _NAT64_WKP_NET:
+        return ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)
+    # ④ 6to4 2002:a.b.c.d::/48（内嵌的是第 2~3 组；sixtofour 已内建）
+    return ip.sixtofour
+
 
 def is_internal_address(value: str) -> bool:
     """判断一个 IP 字面量是否属于**真正的内网/本机**地址。
 
-    IPv4-mapped IPv6（如 `::ffff:127.0.0.1`）会解出内嵌的 IPv4 再判断 ——
-    否则攻击者可以用这种写法绕过检查。
+    对「IPv4 嵌进 IPv6」的四种写法，都会先解出内嵌的 IPv4 再递归判定 ——
+    否则攻击者可以用这些写法绕过检查（见 `_embedded_ipv4` 的说明）。
     """
     try:
         ip = ipaddress.ip_address(value)
     except ValueError:
         return False
     if isinstance(ip, ipaddress.IPv6Address):
-        mapped = ip.ipv4_mapped
-        if mapped is not None:
-            return is_internal_address(str(mapped))
+        embedded = _embedded_ipv4(ip)
+        if embedded is not None:
+            return is_internal_address(str(embedded))
         return any(ip in net for net in _INTERNAL_NETWORKS_V6)
     return any(ip in net for net in _INTERNAL_NETWORKS_V4)
 
