@@ -245,7 +245,7 @@ data/
 ```bash
 ruff check soulmate tests main.py   # 规范 + 安全规则（bandit 子集）
 mypy soulmate main.py               # 类型检查（53 files，全绿）
-pytest tests -q                     # 302 passed
+pytest tests -q                     # 333 passed
 ```
 
 - **ruff 规则集**：pycodestyle / pyflakes / isort / bugbear / comprehensions / pyupgrade / simplify / ruff / **bandit(S)** / print 禁令

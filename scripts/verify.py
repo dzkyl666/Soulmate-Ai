@@ -496,6 +496,35 @@ CAPABILITY_EVIDENCE: list[tuple[str, str]] = [
         "SSRF：嵌入写法反向用例（公网仍放行）",
         "tests/test_core.py::TestIpv4EmbeddedInIpv6::test_public_or_embedded_public_is_allowed",
     ),
+    # ── v2.4：两个被 verify.py 63/63 放过、但真实存在的功能回归 ──
+    (
+        "★ 环境变量兜底：Key 留空能取到",
+        "tests/test_provider_env_fallback.py::TestFallbackTakesEffect::test_env_var_used_when_stored_key_is_empty",
+    ),
+    (
+        "★ 环境变量兜底：不覆盖显式 Key",
+        "tests/test_provider_env_fallback.py::TestPriorityExplicitWins::test_encrypted_wins_over_everything",
+    ),
+    (
+        "★ 环境变量兜底：取不到不抛异常",
+        "tests/test_provider_env_fallback.py::TestNoFallbackIsSilent::test_no_env_var_returns_empty_without_raising",
+    ),
+    (
+        "★ 环境变量兜底：生产默认关",
+        "tests/test_provider_env_fallback.py::TestPolicyDefault::test_production_default_end_to_end_no_fallback",
+    ),
+    (
+        "★ 弹窗能打开（引导第一步＝新用户唯一入口）",
+        "tests/test_apptest.py::TestDialogsActuallyOpen::test_onboarding_add_provider_dialog_opens",
+    ),
+    (
+        "★ 弹窗能打开（设置页编辑资料）",
+        "tests/test_apptest.py::TestDialogsActuallyOpen::test_settings_page_edit_profile_dialog_opens",
+    ),
+    (
+        "弹窗对照组（删除类本来就正常）",
+        "tests/test_apptest.py::TestDialogsActuallyOpen::test_delete_dialog_still_opens",
+    ),
 ]
 
 
@@ -515,6 +544,205 @@ def check_capability_evidence(collected: set[str]) -> None:
         print("      缺失明细：")
         for m in missing:
             print(f"        · {m}")
+
+
+# ══════════════════════════════════════════════════════════════
+# §4c 弹窗调用模式（P0-2 的静态守门员）
+# ══════════════════════════════════════════════════════════════
+def _statement_blocks(tree: ast.AST) -> list[list[ast.stmt]]:
+    """把所有「语句列表」（if/with/for/while/函数体/模块体…）都拿出来。"""
+    blocks: list[list[ast.stmt]] = []
+    for node in ast.walk(tree):
+        for attr in ("body", "orelse", "finalbody"):
+            block = getattr(node, attr, None)
+            if isinstance(block, list) and block and all(isinstance(x, ast.stmt) for x in block):
+                blocks.append(block)
+    return blocks
+
+
+def _is_dialog_call(stmt: ast.stmt) -> bool:
+    """`dialogs.xxx_dialog(...)` 这种调用。"""
+    if not isinstance(stmt, ast.Expr) or not isinstance(stmt.value, ast.Call):
+        return False
+    func = stmt.value.func
+    return isinstance(func, ast.Attribute) and func.attr.endswith("_dialog")
+
+
+def _is_st_rerun(stmt: ast.stmt) -> bool:
+    """`st.rerun()`。"""
+    if not isinstance(stmt, ast.Expr) or not isinstance(stmt.value, ast.Call):
+        return False
+    func = stmt.value.func
+    return (
+        isinstance(func, ast.Attribute)
+        and func.attr == "rerun"
+        and isinstance(func.value, ast.Name)
+        and func.value.id == "st"
+    )
+
+
+def check_dialog_rerun_pattern() -> None:
+    """★ `@st.dialog` 调用点**后面不许紧跟** `st.rerun()`（会让弹窗一闪即退）。
+
+    【为什么用 AST 而不是 grep】
+    `dialogs.py` 的模块说明里**大量引用**了这个错误写法作为反面例子，
+    grep 会把那段文档当违规；AST 只看真实调用语句。
+
+    【为什么必须有这条静态检查】
+    线上出过一次 P0：7 处「添加/编辑」入口全废（其中引导第一步坏了 =
+    新用户永远无法完成初始化），而它**不抛异常**、`at.exception` 是空的，
+    所以除了"点一下看弹窗在不在"的交互测试，静态检查是最便宜的兜底。
+    交互测试在 tests/test_apptest.py::TestDialogsActuallyOpen，两者互补。
+    """
+    section("4c. 弹窗调用模式（强 · AST）")
+    violations: list[str] = []
+    dialog_calls = 0
+    for path in sorted((ROOT / "soulmate" / "ui").glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for block in _statement_blocks(tree):
+            # ★ 逐条按下标看，而不是 zip(block, block[1:])：
+            #   修好之后弹窗调用往往正是该块里的**最后一条**语句，
+            #   用配对遍历会一条都数不到（写这个检查时踩过，靠"扫到 N 处"的自检发现）。
+            for idx, stmt in enumerate(block):
+                if not _is_dialog_call(stmt):
+                    continue
+                dialog_calls += 1
+                if idx + 1 < len(block) and _is_st_rerun(block[idx + 1]):
+                    violations.append(f"{path.relative_to(ROOT)}:{block[idx + 1].lineno}")
+
+    check(dialog_calls > 0, f"扫到 {dialog_calls} 处弹窗调用点", "", STRONG)
+    check(
+        not violations,
+        "弹窗调用点后没有多余的 st.rerun()（有的话弹窗会一闪即退）",
+        f"违规位置: {violations}" if violations else "",
+        STRONG,
+    )
+
+
+# ══════════════════════════════════════════════════════════════
+# §4d v1 → v2 能力回归对照（重构最容易悄悄丢东西的地方）
+# ══════════════════════════════════════════════════════════════
+@dataclass
+class V1Capability:
+    """一条「v1 有 → v2 必须也有」的能力。"""
+
+    name: str
+    legacy_file: str      # v1 证据所在文件
+    legacy_marker: str    # 必须在 v1 文件里找到的字符串（证明 v1 真有这能力）
+    v2_symbol: str        # v2 必须存在的定义（函数/类/变量/参数名）
+    v2_test_prefix: str   # v2 必须有测试的 node id 前缀
+    why: str = ""
+
+
+# 只列**确实是 v1 有**的能力（我逐个 grep 核对过 legacy/）。
+# 刻意**不含**模型降级链与会话导出 —— 那两项在 legacy/ 里 0 命中，是 v2 新增的，
+# 混进来会让这张表失去"回归对照"的意义（表格必须诚实，不能凑数）。
+V1_CAPABILITIES: list[V1Capability] = [
+    V1Capability(
+        name="Key 留空⇒读同名环境变量",
+        legacy_file="legacy/llm.py",
+        legacy_marker="os.getenv(env_name",
+        v2_symbol="provider_env_api_key",
+        v2_test_prefix="tests/test_provider_env_fallback.py",
+        why="★ 就是它丢过一次：承诺四处都在、实现没了，直接导致聊天不可用",
+    ),
+    V1Capability(
+        name="流式输出",
+        legacy_file="legacy/llm.py",
+        legacy_marker="stream=True",
+        v2_symbol="stream",
+        v2_test_prefix="tests/test_llm.py",
+    ),
+    V1Capability(
+        name="厂商预设表",
+        legacy_file="legacy/config.py",
+        legacy_marker="PROVIDER_PRESETS",
+        v2_symbol="PROVIDER_PRESETS",
+        v2_test_prefix="tests/test_core.py",
+    ),
+    V1Capability(
+        name="失败重试可控",
+        legacy_file="legacy/llm.py",
+        legacy_marker="max_retries",
+        v2_symbol="max_retries",
+        v2_test_prefix="tests/test_llm.py",
+    ),
+    V1Capability(
+        name="会话自动起标题",
+        legacy_file="legacy/companion_manager.py",
+        legacy_marker="auto_title",
+        v2_symbol="auto_title",
+        v2_test_prefix="tests/test_services.py",
+    ),
+    V1Capability(
+        name="长期记忆抽取",
+        legacy_file="legacy/memory.py",
+        legacy_marker="def ",
+        v2_symbol="remember_from_exchange",
+        v2_test_prefix="tests/test_ratelimit_wiring.py",
+    ),
+]
+
+
+def _v2_defined_names() -> set[str]:
+    """v2 源码里所有**定义**的名字：函数/类/赋值目标/函数参数。
+
+    为什么不用「字符串出现」来判断：那正是上一版验收脚本被批评的弱点
+    （`"def foo" in text` 连注释和 docstring 都算）。这里只认 AST 里的真实定义，
+    所以「名字只被写进文档、没被实现」会被抓住。
+    """
+    names: set[str] = set()
+    for path in _project_py_files():
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                names.add(node.name)
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    for a in (*node.args.args, *node.args.kwonlyargs):
+                        names.add(a.arg)
+            elif isinstance(node, ast.Assign):
+                names.update(t.id for t in node.targets if isinstance(t, ast.Name))
+            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                names.add(node.target.id)
+    return names
+
+
+def check_v1_capability_regression(collected: set[str]) -> None:
+    """★ v1 有的能力，v2 必须「有实现」**且**「有测试指向它」。
+
+    【这条是为哪一类事故准备的】
+    v2 是一次大规模重构。重构最容易发生的不是"写错"，而是**悄悄丢掉一个能力**：
+    代码看起来更干净了，某个功能却没有了 ——
+    「环境变量兜底」就是这么丢的（`git log -S getenv` 可自证 v2 从未实现）。
+    而当时的验收脚本只做存在性检查，完全看不到这种"能力蒸发"。
+
+    本检查把每条 v1 能力钉成三件事：`legacy/` 里确实有它 → v2 里有对应实现
+    → 且有一个测试文件在盯着它。三缺一就红。
+    """
+    section("4d. v1 → v2 能力回归对照（强 · 对照 legacy/ 实物）")
+    defined = _v2_defined_names()
+    for cap in V1_CAPABILITIES:
+        legacy_path = ROOT / cap.legacy_file
+        legacy_text = legacy_path.read_text(encoding="utf-8", errors="replace") if legacy_path.is_file() else ""
+        in_v1 = cap.legacy_marker in legacy_text
+        in_v2 = cap.v2_symbol in defined
+        tested = any(t.startswith(cap.v2_test_prefix) for t in collected)
+        problems = []
+        if not in_v1:
+            problems.append(f"v1 证据没了（{cap.legacy_file} 里找不到 {cap.legacy_marker!r}）")
+        if not in_v2:
+            problems.append(f"v2 无实现（找不到定义 {cap.v2_symbol!r}）")
+        if not tested:
+            problems.append(f"无测试（{cap.v2_test_prefix} 没收集到用例）")
+        check(not problems, f"「{cap.name}」v1 有 → v2 仍有", "; ".join(problems), STRONG)
+
+    # 反向断言：故意查一个**不存在**的符号，确认检查不是"永远返回 True"
+    check(
+        "definitely_not_a_real_symbol_xyz" not in defined,
+        "阴性对照：定义集合查询能区分存在与不存在",
+        "若这条失败，说明 §4d 的判定失灵，上面的 PASS 不可信",
+        STRONG,
+    )
 
 
 # ══════════════════════════════════════════════════════════════
@@ -652,6 +880,8 @@ def main() -> int:
     collected = _test_node_ids()
     check_capability_evidence(collected)
     check_doc_counts(collected)
+    check_dialog_rerun_pattern()
+    check_v1_capability_regression(collected)
     check_security_surface()
     check_deliverables()
     check_ci()
