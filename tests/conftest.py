@@ -106,3 +106,31 @@ def _reset_rate_limiter():
     get_limiter().reset()
     yield
     get_limiter().reset()
+
+
+@pytest.fixture(autouse=True)
+def _stub_dns(monkeypatch):
+    """★ 把域名解析替换成固定公网 IP，让测试**不依赖真实 DNS**。
+
+    【为什么必须这样 —— 一个踩过的真坑】
+    SSRF 检查会解析域名，而真实解析结果会随环境变。实测教训：
+    `api.openai.com` 的 AAAA 记录是 `2001::c73b:9466`（Teredo 段 2001::/32），
+    而 Python 的 `ipaddress.is_private` 把整个 `2001::/23` 视为私有 ——
+    于是「本机 VPN 一开，测试就红」这种**假故障**出现了。
+    依赖真实 DNS 的测试套件本身就是不可靠的。
+
+    需要验证「域名解析到内网」的场景时，在用例里覆盖本夹具即可：
+        monkeypatch.setattr("soulmate.core.validation.resolved_addresses", lambda h: ["10.0.0.5"])
+    """
+    import ipaddress
+
+    def _fake_resolve(host: str) -> list[str]:
+        # ★ IP 字面量必须走原逻辑：否则「127.0.0.1 应被拦」这类测试会被 stub 掩盖。
+        #   stub 只替换**真正的 DNS 查询**这一段。
+        try:
+            ipaddress.ip_address(host)
+        except ValueError:
+            return ["93.184.216.34"]  # 域名 → 固定公网地址
+        return [host]
+
+    monkeypatch.setattr("soulmate.core.validation.resolved_addresses", _fake_resolve)

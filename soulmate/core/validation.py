@@ -61,42 +61,93 @@ def validate_avatar(value: object) -> str:
     return s
 
 
-def _is_private_ip(ip_str: str) -> bool:
+# 真正属于「内网 / 本机 / 不可路由」的网段。
+#
+# 为什么不直接用 `ipaddress.is_private`：它把 IANA 的「非全球可达」特殊段
+# 也算成 private，其中两段会造成**正常公网厂商被误拦**（实测证据见 docs/SECURITY.md）：
+#
+#   · 2001::/23 —— 含 Teredo(2001::/32) 与基准测试段。
+#     实测 `api.openai.com` 的 AAAA 记录 `2001::c73b:9466` 正落在里面，
+#     于是「OpenAI 官方」这个预设会被本项目的 SSRF 检查拦掉。
+#   · 198.18.0.0/15 —— 基准测试段，同时也是代理软件 fake-IP 模式的常用映射段。
+#     它是「代理产物」，不是内网服务；若按内网拦，开 fake-IP 的用户全都配不了模型。
+#
+# 所以这里**显式列出**真正的内网段 —— 宁可写清楚，也不复用语义过宽的 is_private。
+_INTERNAL_NETWORKS_V4 = (
+    ipaddress.ip_network("0.0.0.0/8"),        # 本网络
+    ipaddress.ip_network("10.0.0.0/8"),       # RFC1918
+    ipaddress.ip_network("100.64.0.0/10"),    # 运营商级 NAT
+    ipaddress.ip_network("127.0.0.0/8"),      # 回环
+    ipaddress.ip_network("169.254.0.0/16"),   # 链路本地
+    ipaddress.ip_network("172.16.0.0/12"),    # RFC1918
+    ipaddress.ip_network("192.0.0.0/24"),     # IETF 协议分配
+    ipaddress.ip_network("192.168.0.0/16"),   # RFC1918
+    ipaddress.ip_network("224.0.0.0/4"),      # 组播
+    ipaddress.ip_network("240.0.0.0/4"),      # 保留
+)
+
+_INTERNAL_NETWORKS_V6 = (
+    ipaddress.ip_network("::/128"),           # 未指定
+    ipaddress.ip_network("::1/128"),          # 回环
+    ipaddress.ip_network("fc00::/7"),         # 唯一本地地址（ULA）
+    ipaddress.ip_network("fe80::/10"),        # 链路本地
+    ipaddress.ip_network("ff00::/8"),         # 组播
+)
+
+
+def is_internal_address(value: str) -> bool:
+    """判断一个 IP 字面量是否属于**真正的内网/本机**地址。
+
+    IPv4-mapped IPv6（如 `::ffff:127.0.0.1`）会解出内嵌的 IPv4 再判断 ——
+    否则攻击者可以用这种写法绕过检查。
+    """
     try:
-        ip = ipaddress.ip_address(ip_str)
+        ip = ipaddress.ip_address(value)
     except ValueError:
         return False
-    return (
-        ip.is_private        # RFC1918 + 唯一本地地址
-        or ip.is_loopback    # 127.x
-        or ip.is_link_local  # 169.254.x
-        or ip.is_reserved
-        or ip.is_multicast
-        or ip.is_unspecified
-    )
+    if isinstance(ip, ipaddress.IPv6Address):
+        mapped = ip.ipv4_mapped
+        if mapped is not None:
+            return is_internal_address(str(mapped))
+        return any(ip in net for net in _INTERNAL_NETWORKS_V6)
+    return any(ip in net for net in _INTERNAL_NETWORKS_V4)
 
 
-def _hostname_resolves_to_private(host: str) -> bool:
-    """判断主机名是否解析到私有/内网地址。解析失败时 fail-open（放行）并返回 False。
+def is_ip_literal(value: str) -> bool:
+    """`value` 是不是 IP 字面量（而不是域名）。
 
-    为什么 fail-open：离线开发时 DNS 解析必然失败，若此时直接拦，用户连本地都配不了。
-    这层防护的定位是「挡住明显的 SSRF」，不是「防火墙」。
+    独立成函数而不是写成 `try/except/pass`：本项目的 verify.py 会用 AST
+    禁止「静默吞异常的 except: pass」，而那种写法正好命中（写的时候就被自己的检查抓过）。
     """
-    # 情况一：host 本身就是 IP 字面量
     try:
-        ipaddress.ip_address(host)
+        ipaddress.ip_address(value)
     except ValueError:
-        pass  # 不是 IP，走下面的 DNS 解析分支
-    else:
-        return _is_private_ip(host)
+        return False
+    return True
 
-    # 情况二：域名 → 解析出所有地址，任一为内网就拦
+
+def resolved_addresses(host: str) -> list[str]:
+    """把主机名解析成 IP 列表；host 本身是 IP 字面量时直接返回它。
+
+    解析失败返回空列表（调用方据此 fail-open，见 validate_base_url 的说明）。
+    """
+    if is_ip_literal(host):
+        return [host]
     try:
         infos = socket.getaddrinfo(host, None)
-    except socket.gaierror:
-        return False
-    addrs = {str(info[4][0]) for info in infos}
-    return any(_is_private_ip(a) for a in addrs)
+    except (socket.gaierror, OSError):
+        return []
+    return sorted({str(info[4][0]) for info in infos})
+
+
+def _hostname_resolves_to_internal(host: str) -> list[str]:
+    """返回该主机名解析出的**内网地址**列表（空列表 = 安全）。
+
+    只要解析结果里**存在**内网地址就判定为不安全（宁可严一点）——
+    因为客户端可能挑中那一个去连接。
+    定位：挡住「明显的 SSRF」，不是防火墙；解析失败时 fail-open。
+    """
+    return [a for a in resolved_addresses(host) if is_internal_address(a)]
 
 
 def validate_base_url(value: object, *, allow_private: bool | None = None) -> str:
@@ -116,11 +167,17 @@ def validate_base_url(value: object, *, allow_private: bool | None = None) -> st
         raise ValidationError("Base URL 缺少主机名")
 
     allow = get_settings().allow_private_base_url if allow_private is None else allow_private
-    if not allow and _hostname_resolves_to_private(hostname):
-        raise ValidationError(
-            "该地址指向内网/本机，出于安全已阻止。若确需接入内网模型，"
-            "请设置 SOULMATE_ALLOW_PRIVATE_BASE_URL=true"
-        )
+    if not allow:
+        internal = _hostname_resolves_to_internal(hostname)
+        if internal:
+            # 错误文案里带上解析结果：用户填的是公网域名却被拦时，
+            # 只有看到"解析到了什么"才能判断是自己网络的问题还是配置的问题。
+            shown = ", ".join(internal[:3])
+            raise ValidationError(
+                f"「{hostname}」解析到内网/本机地址（{shown}），出于安全已阻止。"
+                "如果你确实要接内网模型（如 Ollama / 内网反代），"
+                "请设置 SOULMATE_ALLOW_PRIVATE_BASE_URL=true"
+            )
     # 归一化：去掉末尾多余的斜杠（避免同一个地址因 / 数量不同被当成两条）
     return s.rstrip("/")
 

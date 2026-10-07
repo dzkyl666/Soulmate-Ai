@@ -114,6 +114,90 @@ class TestValidateBaseUrl:
     def test_allows_private_when_explicitly_enabled(self):
         assert validation.validate_base_url("http://127.0.0.1:8000/v1", allow_private=True)
 
+    def test_blocks_hostname_that_resolves_to_internal(self, monkeypatch):
+        """域名（不是 IP 字面量）解析到内网时也要拦 —— 这才是 SSRF 的真实形态。"""
+        monkeypatch.setattr("soulmate.core.validation.resolved_addresses", lambda host: ["10.0.0.5"])
+        with pytest.raises(ValidationError) as ei:
+            validation.validate_base_url("https://internal.example.com/v1", allow_private=False)
+        assert "10.0.0.5" in str(ei.value)  # 报错要带上解析结果，用户才知道为什么被拦
+
+    def test_blocks_when_any_resolved_address_is_internal(self, monkeypatch):
+        """一个域名返回多个地址时，只要有内网就拦（客户端可能挑中那一个）。"""
+        monkeypatch.setattr(
+            "soulmate.core.validation.resolved_addresses",
+            lambda host: ["93.184.216.34", "192.168.1.10"],
+        )
+        with pytest.raises(ValidationError):
+            validation.validate_base_url("https://mixed.example.com/v1", allow_private=False)
+
+    def test_fail_open_when_dns_unresolvable(self, monkeypatch):
+        """离线/DNS 失败时放行（否则用户在断网环境连本地都配不了）。"""
+        monkeypatch.setattr("soulmate.core.validation.resolved_addresses", lambda host: [])
+        assert validation.validate_base_url("https://nowhere.invalid/v1", allow_private=False)
+
+
+class TestInternalAddressPredicate:
+    """★ 回归测试：修掉「正常公网厂商被 SSRF 检查误拦」的真实缺陷。
+
+    根因：原先直接用 `ipaddress.is_private`，而它把 IANA 的
+    「非全球可达」特殊段也算私有，其中 `2001::/23`（Teredo + 基准测试）
+    覆盖了 `api.openai.com` 的 AAAA 记录 `2001::c73b:9466`
+    —— 于是「OpenAI 官方」预设会被自己的安全检查拦掉。
+    """
+
+    @pytest.mark.parametrize(
+        "addr",
+        [
+            "2001::c73b:9466",   # Teredo 段：api.openai.com 的真实 AAAA 记录
+            "198.18.0.14",       # 基准测试段 / 代理 fake-IP 常用映射
+            "108.160.169.175",   # 普通公网 IPv4
+            "93.184.216.34",
+            "2606:4700:4700::1111",  # 公网 IPv6（Cloudflare DNS）
+        ],
+    )
+    def test_public_addresses_are_not_internal(self, addr):
+        assert validation.is_internal_address(addr) is False
+
+    @pytest.mark.parametrize(
+        ("addr", "why"),
+        [
+            ("10.0.0.5", "RFC1918"),
+            ("172.16.3.9", "RFC1918"),
+            ("192.168.1.1", "RFC1918"),
+            ("127.0.0.1", "回环"),
+            ("169.254.1.1", "链路本地"),
+            ("100.64.0.1", "运营商级 NAT"),
+            ("0.0.0.0", "本网络"),
+            ("::1", "IPv6 回环"),
+            ("fc00::1", "IPv6 ULA"),
+            ("fe80::1", "IPv6 链路本地"),
+        ],
+    )
+    def test_internal_addresses_are_internal(self, addr, why):
+        assert validation.is_internal_address(addr) is True, why
+
+    def test_ipv4_mapped_ipv6_cannot_bypass(self):
+        """`::ffff:127.0.0.1` 这种写法必须被识破，否则就是一条绕过路径。"""
+        assert validation.is_internal_address("::ffff:127.0.0.1") is True
+        assert validation.is_internal_address("::ffff:10.1.2.3") is True
+
+    def test_non_ip_string_is_not_internal(self):
+        assert validation.is_internal_address("not-an-ip") is False
+
+    def test_openai_preset_url_is_accepted(self):
+        """把预设表真跑一遍：所有内置厂商地址都必须能通过校验。
+
+        这条能挡住「新增预设时忘了它会被自己的安全检查拦掉」这类回归。
+        """
+        from soulmate.core.presets import PROVIDER_PRESETS
+
+        for key, preset in PROVIDER_PRESETS.items():
+            url = str(preset.get("base_url") or "")
+            if not url:
+                continue  # custom 预设本来就是空的
+            # 用 allow_private=True 跳过 DNS 分支，专测 scheme/host 解析层
+            assert validation.validate_base_url(url, allow_private=True), key
+
 
 class TestValidateOther:
     def test_username_normalises_and_validates(self):
