@@ -1,0 +1,132 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "soulmate-ai"
+version = "2.0.0"
+description = "多伴侣 / 多模型 / 多用户的 AI 聊天应用（Streamlit + OpenAI 兼容协议）"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "李永康", email = "dzkyl666@users.noreply.github.com" }]
+keywords = ["llm", "streamlit", "ai-companion", "openai-compatible", "multi-user"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Framework :: Streamlit",
+    "Intended Audience :: End Users/Desktop",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Communications :: Chat",
+]
+
+# 运行期依赖（生产最小集）
+dependencies = [
+    "streamlit==1.63.0",
+    "openai==3.11.0",
+    "pydantic>=2.13,<3",
+    "pydantic-settings>=2.13,<3",
+    "cryptography>=46,<51",
+    "bcrypt>=4.3,<6",
+]
+
+[project.optional-dependencies]
+# 开发/CI 依赖：pip install -e ".[dev]"
+dev = [
+    "pytest>=8.3,<10",
+    "pytest-cov>=6,<8",
+    "ruff>=0.14,<1",
+    "mypy>=1.14,<2",
+    "pre-commit>=4,<5",
+]
+
+[project.urls]
+Homepage = "https://github.com/dzkyl666/Soulmate-Ai"
+Issues = "https://github.com/dzkyl666/Soulmate-Ai/issues"
+
+[project.scripts]
+soulmate = "soulmate.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["soulmate*"]
+
+# ══════════════════════════════════════════════════════════════
+# Ruff —— linter + formatter（取代 black / isort / flake8 三件套）
+# ══════════════════════════════════════════════════════════════
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+extend-exclude = [".venv", "data", "build", "dist"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes（未使用变量 / 未定义名字）
+    "I",   # isort（import 排序）
+    "B",   # flake8-bugbear（常见逻辑陷阱）
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade（用新语法）
+    "SIM", # flake8-simplify
+    "RUF", # ruff 自有规则
+    "S",   # flake8-bandit（安全）
+    "T20", # flake8-print（禁止裸 print）
+]
+ignore = [
+    "E501",    # 行长由 formatter 决定
+    "S101",    # 测试里允许 assert
+    "RUF001",  # 允许中文全角标点（本项目注释/文案是中文）
+    "RUF002",
+    "RUF003",
+    "SIM108",  # 三元表达式不是永远更清晰
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "T20"]
+"soulmate/cli.py" = ["T20"]   # CLI 的职责就是往终端打字
+
+[tool.ruff.lint.isort]
+known-first-party = ["soulmate"]
+
+# ══════════════════════════════════════════════════════════════
+# Mypy —— 类型检查（渐进式：先收核心层，UI 层放宽）
+# ══════════════════════════════════════════════════════════════
+[tool.mypy]
+python_version = "3.11"
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = true
+ignore_missing_imports = true
+exclude = ["^\\.venv/", "^build/", "^dist/"]
+
+[[tool.mypy.overrides]]
+# Streamlit 的 UI 层大量使用动态 session_state，强类型收益低、噪音大
+module = ["soulmate.ui.*", "main", "soulmate.cli"]
+disallow_untyped_defs = false
+
+# ══════════════════════════════════════════════════════════════
+# Pytest
+# ══════════════════════════════════════════════════════════════
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "network: 需要真实外网/真实 API Key 的测试（默认不跑）",
+    "slow: 耗时较长的测试",
+]
+filterwarnings = ["ignore::DeprecationWarning:streamlit.*"]
+
+[tool.coverage.run]
+source = ["soulmate"]
+omit = ["soulmate/ui/*", "soulmate/cli.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError"]
