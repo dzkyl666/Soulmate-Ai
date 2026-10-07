@@ -3,6 +3,9 @@
 【设计原则】
 1. **配置只有一个来源**：所有可调项都在这一个类里，别处不许再散落 `os.getenv()`。
    散落是 bug 的温床 —— 你会忘了还有哪些地方能改，也会忘了同步。
+   唯一例外是**厂商 API Key 的兜底**（`provider_env_api_key()`）：那是「按预设动态读
+   `SILICONFLOW_API_KEY` 这类第三方约定名」，没法声明成固定字段。即便例外也仍守规矩：
+   全项目**只有这里**读它，仓储层靠注入的 callable 拿值，自己不碰环境变量。
 2. **默认值必须能跑通单机**：不设任何环境变量也能 `streamlit run main.py` 起来。
 3. **生产项必须显式开启**：`SOULMATE_ENV=production` 时，弱密钥 / 明文口令这类
    危险配置会直接拒绝启动（fail fast），而不是等出事。
@@ -25,6 +28,8 @@ from typing import Literal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from soulmate.core.presets import PROVIDER_PRESETS
+
 # 项目根目录：本文件是 <root>/soulmate/core/settings.py → parents[2] 即 <root>
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -41,6 +46,14 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
+        # ★ 空值环境变量视为「没设置」。
+        #
+        # 不加这条会有一个很坑的后果：可选字段（如 `provider_env_fallback: bool | None`）
+        # 一旦被写成**留空**的形式 `SOULMATE_PROVIDER_ENV_FALLBACK=`，
+        # pydantic 会拿空串去解析 bool → ValidationError → **应用直接起不来**。
+        # 而「留空 = 用默认值」恰恰是大家照抄 `.env.example` 时的习惯写法。
+        # 实测确认过：空串会崩、不写则正常。
+        env_ignore_empty=True,
     )
 
     # ── 基础 ────────────────────────────────────────────────
@@ -73,6 +86,28 @@ class Settings(BaseSettings):
 
     默认 False：防止「用户填一个 URL，服务器替他去请求内网」这类 SSRF。
     自己确实需要接内网服务时，显式设 `SOULMATE_ALLOW_PRIVATE_BASE_URL=true`。
+    """
+
+    provider_env_fallback: bool | None = None
+    """模型 Key 留空时，是否回退去读**同名环境变量**（v1 原有行为）。
+
+    【三态设计：None = 跟随环境自动决定】
+    - `None`（默认）→ 非生产环境**开**、生产环境**关**（见 `provider_env_fallback_enabled`）
+    - `True` → 强制开；`False` → 强制关
+
+    【为什么生产默认要关（这是本项目最需要留意的安全取舍之一）】
+    环境变量是**服务器级**的：一旦兜底生效，任何能登录的用户只要把 Key 留空，
+    就能白用**服务器所有者**的额度。生产环境用户更多、更不可信，所以安全默认是关。
+    这与 `allow_private_base_url=False` 是同一套思路：危险的方便默认关掉，需要时显式开。
+
+    【为什么非生产默认要开】
+    这是 v1 就有的行为，很多老用户的 Key 一直只放在系统环境变量里（`api_key: ""`）。
+    关掉它等于「聊天功能直接不可用」，而且报错还会把人引向"充值"。
+    除非显式设成 `False`，否则单机/开发场景保持可用。
+
+    ⚠️ 这条默认值是**建议值**，不是不可改的戒律：单人自部署、又希望长期用
+    `SOULMATE_ENV=production` 跑的话，显式设 `SOULMATE_PROVIDER_ENV_FALLBACK=true` 即可。
+    详见 docs/SECURITY.md 的取舍表。
     """
 
     session_ttl_hours: int = Field(default=72, ge=1, le=24 * 30)
@@ -140,6 +175,20 @@ class Settings(BaseSettings):
     def _strip_admins(cls, v: str) -> str:
         return ",".join(x.strip() for x in v.split(",") if x.strip())
 
+    @field_validator("provider_env_fallback", mode="before")
+    @classmethod
+    def _blank_fallback_means_auto(cls, v: object) -> object:
+        """留空 / 纯空白 → `None`（= 自动按环境决定）。
+
+        `env_ignore_empty=True` 只挡得住**真空串**，挡不住 `SOULMATE_X=   `（空格）。
+        而对 `bool | None` 字段，空白串会解析失败 → **应用直接起不来**。
+        这里收口成 None，让「留空 = 用默认」这个照抄 `.env.example` 时的常见写法
+        在任何情况下都安全。
+        """
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
+
     # ── 派生属性 / 目录 ─────────────────────────────────────
     @property
     def is_production(self) -> bool:
@@ -169,6 +218,31 @@ class Settings(BaseSettings):
     def secret_file(self) -> Path:
         """自动生成的根密钥落盘位置（仅非生产环境使用）。"""
         return self.data_root() / ".app_secret"
+
+    # ── 厂商 Key 的环境变量兜底（v1 行为，v2 曾丢失后恢复）──
+    @property
+    def provider_env_fallback_enabled(self) -> bool:
+        """把三态的 `provider_env_fallback` 解析成最终布尔值。
+
+        `None` → 非生产开、生产关。理由见字段 docstring 与 docs/SECURITY.md。
+        """
+        if self.provider_env_fallback is not None:
+            return self.provider_env_fallback
+        return self.env != "production"
+
+    def provider_env_api_key(self, preset: str) -> str:
+        """按预设的 `env_key` 读**同名环境变量**；读不到返回 `""`（绝不抛异常）。
+
+        这是全项目**唯一**读动态环境变量名的地方（见模块 docstring 的例外说明）。
+        仓储层不直接碰环境变量，而是接收容器注入的 callable。
+
+        【为什么不抛异常】这是「兜底」：环境变量没设是完全正常的情况
+        （用户就是在界面上填了 Key）。这里一旦抛，整个 provider 列表都读不出来。
+        """
+        env_name = str(PROVIDER_PRESETS.get(preset, {}).get("env_key") or "")
+        if not env_name:
+            return ""
+        return (os.environ.get(env_name) or "").strip()
 
     def log_dir(self) -> Path:
         return self.data_root() / "logs"

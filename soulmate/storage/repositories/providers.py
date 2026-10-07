@@ -4,10 +4,19 @@
 - 内存里的 `Provider.api_key` 是明文（要给 llm 层用）
 - 磁盘上的记录里只有 `api_key_enc`（Fernet 密文），**绝不出现明文 key**
 - 兼容旧数据：老版本存的是明文 `api_key`，读到后照常用，下次保存时自动转成密文
+
+【关于「环境变量兜底」】
+v1 有一条链路：界面上 Key 留空 → 读该预设对应的同名环境变量。
+v2 重构时丢了这条（见 docs/MIGRATION.md 的「v1 → v2 行为变化清单」），现已恢复。
+
+实现上**本层不读环境变量**：容器把 `Settings.provider_env_api_key` 作为 callable
+注进来（`api_key_fallback`）。这样既守住了「配置只有一个来源」的分层原则，
+又保证了**不可能漏调用点** —— 凡是走出仓储的 Provider 都会经过这里。
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from soulmate.core.logging import get_logger
@@ -26,9 +35,19 @@ class ProviderRepository:
 
     FILE = "providers.json"
 
-    def __init__(self, root: Path, cipher: SecretBox) -> None:
+    def __init__(
+        self,
+        root: Path,
+        cipher: SecretBox,
+        api_key_fallback: Callable[[str], str] | None = None,
+    ) -> None:
+        """`api_key_fallback(preset) -> key`：Key 为空时的**最后**兜底（可注入）。
+
+        传 `None` 表示不启用兜底（生产默认，或测试想验证"没有兜底"的行为）。
+        """
         self._path = Path(root) / self.FILE
         self._cipher = cipher
+        self._api_key_fallback = api_key_fallback
 
     # ── 记录 ↔ 模型 ──
     def _to_model(self, record: dict) -> Provider | None:
@@ -47,6 +66,13 @@ class ProviderRepository:
         elif record.get("api_key"):
             # 老版本明文：直接读，下次 upsert 时自动加密
             api_key = str(record["api_key"])
+
+        # 第三优先级：环境变量兜底（v1 行为）。
+        # 优先级必须是「密文 > 旧明文 > 环境变量」—— 环境变量**只兜底**，
+        # 绝不能覆盖用户在界面上显式填的 Key（那会让人以为自己的 Key 没生效）。
+        # 取不到就静默保持空串：没设环境变量是正常情况，不是错误。
+        if not api_key and self._api_key_fallback is not None:
+            api_key = self._api_key_fallback(str(record.get("preset") or ""))
 
         clean = {k: v for k, v in record.items() if k not in _PLAINTEXT_KEYS}
         try:

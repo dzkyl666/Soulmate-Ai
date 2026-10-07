@@ -53,9 +53,15 @@ class ServiceContainer:
 
         cipher = get_cipher(settings.app_secret)
 
+        # Key 留空时回退读同名环境变量（v1 行为，v2 重构时丢失后恢复）。
+        # 关掉时传 None，仓储层就完全不做兜底。
+        # 生产默认关：环境变量是**服务器级**凭证，开了之后任何登录用户
+        # 只要把 Key 留空就能白用服务器所有者的额度。
+        env_fallback = settings.provider_env_api_key if settings.provider_env_fallback_enabled else None
+
         # ── 仓储 ──
         self.user_repo = UserRepository(settings.data_root())
-        self.provider_repo = ProviderRepository(self.user_dir, cipher)
+        self.provider_repo = ProviderRepository(self.user_dir, cipher, api_key_fallback=env_fallback)
         self.companion_repo = CompanionRepository(self.user_dir)
         self.session_repo = SessionRepository(self.user_dir)
         self.memory_repo = MemoryRepository(self.user_dir)

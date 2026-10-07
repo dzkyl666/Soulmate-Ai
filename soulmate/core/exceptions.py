@@ -144,8 +144,17 @@ class ProviderError(SoulmateError):
 
 class ProviderAuthError(ProviderError):
     code = "provider_auth_error"
-    # 这条要明确指路，否则用户只会看到「失败」而不知道去改 Key
-    default_message = "模型服务拒绝了密钥，请检查 API Key 是否正确 / 是否欠费"
+    # 这条要明确指路，否则用户只会看到「失败」而不知道去改 Key。
+    #
+    # ⚠️ 文案刻意**不**说「是否欠费」：实测过一次误导 —— 真实原因是
+    # provider 的 Key 为空且依赖环境变量兜底（v2 曾丢失该功能），
+    # 但旧文案把人引向「换 Key / 充值」，方向完全错了。
+    default_message = (
+        "模型服务拒绝了密钥。请依次确认：① API Key 是否填对；"
+        "② 若该模型服务的 Key 留空、依赖环境变量（如 SILICONFLOW_API_KEY），"
+        "确认该变量已设置**且服务进程能读到**（环境变量必须在启动服务前设好，"
+        "改完需重启）；③ 账户余额/权限是否正常"
+    )
     retryable = False
 
 
