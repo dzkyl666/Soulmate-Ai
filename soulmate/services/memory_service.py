@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import json
 
+from soulmate.core.exceptions import RateLimitError
 from soulmate.core.logging import get_logger
 from soulmate.core.models import ChatMessage, MemoryFact, Provider
 from soulmate.core.presets import EXTRACT_PROMPT
+from soulmate.core.ratelimit import get_limiter
 from soulmate.core.settings import Settings
 from soulmate.llm.service import LLMService
 from soulmate.storage.repositories import MemoryRepository
@@ -21,12 +23,19 @@ log = get_logger("soulmate.services.memory")
 
 
 class MemoryService:
-    def __init__(self, repo: MemoryRepository, llm: LLMService, settings: Settings) -> None:
+    def __init__(self, repo: MemoryRepository, llm: LLMService, settings: Settings, user_id: str = "") -> None:
         self._repo = repo
         self.llm = llm
         self._settings = settings
+        # 限流 key 用（与 LLMService 同样由容器注入）
+        self._user_id = user_id
 
     # ── 读 ──
+    @property
+    def user_id(self) -> str:
+        """本服务归属的用户（限流 key 的一部分）。"""
+        return self._user_id
+
     def list_facts(self, companion_id: str) -> list[MemoryFact]:
         return self._repo.list_facts(companion_id)
 
@@ -62,9 +71,25 @@ class MemoryService:
         *,
         keep_last: int = 6,
     ) -> int:
-        """从最近几轮对话抽「值得长期记住的事」入库，返回新增条数。失败静默返回 0。"""
+        """从最近几轮对话抽「值得长期记住的事」入库，返回新增条数。
+
+        【失败语义刻意分两种，别混】
+        - **限流**：抛 `RateLimitError`。这是「你被限速了」的运维信号，不该静默掉；
+        - **其它失败**（模型报错 / 网络抖 / 抽不出东西）：静默返回 0 ——
+          记忆是锦上添花，绝不能把聊天主流程带崩。
+
+        注意：这里记的是 `extract:` 那一档，而内部 `llm.chat()` 还会再记一次
+        `chat:` 那一档 —— 即**一次抽取消耗两档配额**，这个相互作用已写进 SECURITY.md。
+        """
         if not provider or not messages:
             return 0
+
+        get_limiter().hit(
+            f"extract:{self._user_id or 'anonymous'}",
+            limit=self._settings.rate_limit_extract_per_minute,
+            per_seconds=60,
+        )
+
         recent = messages[-keep_last:]
         convo = "\n".join(
             f"{'用户' if m.role == 'user' else '伴侣'}：{m.content}" for m in recent
@@ -80,6 +105,12 @@ class MemoryService:
                 timeout=self._settings.extract_timeout_seconds,
                 max_retries=0,  # 实测：默认重试 2 次在失败路径上要白等 10 秒
             )
+        except RateLimitError:
+            # ★ 限流**不静默**：抽取内部走的是 llm.chat()，会吃 chat 档配额；
+            #   配额用尽属于「可观测的运维信号」，必须冒出去让调用方/界面知道。
+            #   若在这里被下面的 except Exception 吞掉，就会出现
+            #   「extract 档用尽会报错、chat 档用尽却静默」的不一致语义。
+            raise
         except Exception:
             log.warning("记忆抽取失败，静默跳过", exc_info=True)
             return 0

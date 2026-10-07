@@ -14,6 +14,7 @@ from typing import Any
 
 from soulmate.core.models import Companion, Provider
 from soulmate.core.settings import Settings
+from soulmate.llm.registry import ProviderRegistry
 from soulmate.llm.service import LLMService
 from soulmate.services.companion_service import CompanionService
 from soulmate.services.export_service import ExportService
@@ -34,7 +35,17 @@ from soulmate.storage.secrets import get_cipher
 class ServiceContainer:
     """单用户的服务集合。构造它不联网、不写盘（除了惰性加密件）。"""
 
-    def __init__(self, settings: Settings, user_id: str) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        user_id: str,
+        registry: ProviderRegistry | None = None,
+    ) -> None:
+        """`registry` 是给测试留的注入点（生产传 None → 用默认注册表）。
+
+        有了它，测试可以直接用**容器自己持有的** LLMService 去验证限流记账，
+        而不必用 `set_llm()` 换一个进去 —— 后者验证不到「容器有没有把 user_id 传下去」。
+        """
         self.settings = settings
         self.user_id = user_id
         self.user_dir: Path = settings.user_data_dir(user_id)
@@ -50,13 +61,15 @@ class ServiceContainer:
         self.profile_repo = ProfileRepository(self.user_dir)
 
         # ── 底层层 ―
-        self.llm = LLMService(settings)
+        # user_id 注入这两个服务：它们是**限流记账**的地方，
+        # 配额必须按用户隔离（进程级单例，不隔离就会一人刷满全员锁死）。
+        self.llm = LLMService(settings, user_id, registry=registry)
         self.metrics = UsageMetrics(self.user_dir)
 
         # ── 业务层 ──
         self.providers = ProviderService(self.provider_repo, settings)
         self.companions = CompanionService(self.companion_repo, self.session_repo, self.memory_repo, self.llm, settings)
-        self.memory = MemoryService(self.memory_repo, self.llm, settings)
+        self.memory = MemoryService(self.memory_repo, self.llm, settings, user_id)
         self.export = ExportService(self.session_repo, settings)
 
     # ── 便捷方法（UI 常用，省得 UI 层拼装）──

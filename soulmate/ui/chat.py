@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from soulmate.core.exceptions import ValidationError
+from soulmate.core.exceptions import RateLimitError, ValidationError
 from soulmate.core.models import ChatMessage, Companion, Provider, SessionMeta
 from soulmate.core.settings import Settings
 from soulmate.llm.types import ChunkEvent, EndEvent, ErrorEvent, FallbackEvent
@@ -93,6 +93,9 @@ def render_chat(svc: ServiceContainer, settings: Settings) -> None:
                     st.warning("模型没返回有效的标题，再试一次？")
                 except ValidationError as exc:
                     st.error(exc.user_message())
+                except RateLimitError as exc:
+                    # 起名走 llm.chat()，也受聊天配额约束 —— 给出可读的限流提示
+                    st.warning(f"⏳ {exc.user_message()}")
                 except Exception as exc:
                     _log("ai_title", str(exc))
                     st.error("起名失败，请稍后重试")
@@ -251,9 +254,15 @@ def _send_and_stream(
     if final_text is not None:
         messages.append(ChatMessage(role="assistant", content=final_text))
         svc.companions.save_messages(cid, sid, messages)
-        # 长期记忆抽取（可关），失败静默
+        # 长期记忆抽取（可关）。
+        # ★ 必须在这里兜住 RateLimitError：抽取配额可能用尽，
+        #   若异常冒出去，后面的「写回 session_state + rerun」会被跳过，
+        #   用户刚发的消息反而渲染不出来 —— 那是比"没记住"严重得多的回归。
         if st.session_state.get("_memory_enabled", True):
-            svc.memory.remember_from_exchange(cid, messages, provider, fallback)
+            try:
+                svc.memory.remember_from_exchange(cid, messages, provider, fallback)
+            except RateLimitError as exc:
+                _log("memory_extract", f"抽取被限流，本条未抽取：{exc}")
         st.session_state["_messages"] = messages
         st.rerun()
         return

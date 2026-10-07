@@ -14,8 +14,10 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
 
+from soulmate.core.exceptions import RateLimitError
 from soulmate.core.logging import get_logger
 from soulmate.core.models import ChatMessage, Provider
+from soulmate.core.ratelimit import get_limiter
 from soulmate.core.settings import Settings
 from soulmate.llm.registry import ProviderRegistry, get_registry
 from soulmate.llm.types import (
@@ -33,10 +35,35 @@ class LLMService:
     def __init__(
         self,
         settings: Settings,
+        user_id: str = "",
         registry: ProviderRegistry | None = None,
     ) -> None:
         self._settings = settings
+        # user_id 由 ServiceContainer 在构造时注入（容器本来就持有它，无需贯穿接口）。
+        # 它是**限流 key 的一部分**：配额必须按用户隔离，
+        # 否则一个人刷满会让所有人被一起锁死。
+        self._user_id = user_id
         self._registry = registry or get_registry()
+
+    # ══════════════════════════════════════════════════════════
+    # 限流记账
+    # ══════════════════════════════════════════════════════════
+    @property
+    def user_id(self) -> str:
+        """本服务归属的用户（限流 key 的一部分）。公开出来便于诊断与测试断言。"""
+        return self._user_id
+
+    def _charge_quota(self) -> None:
+        """给当前用户的「模型调用」配额记一次账；超限抛 `RateLimitError`。
+
+        为什么 chat() 和 stream() **都要**调：这是两个独立入口，
+        只堵 stream() 会漏掉 **AI 起名**（它走 chat()）与记忆抽取。
+        """
+        get_limiter().hit(
+            f"chat:{self._user_id or 'anonymous'}",
+            limit=self._settings.rate_limit_chat_per_minute,
+            per_seconds=60,
+        )
 
     # ══════════════════════════════════════════════════════════
     # 非流式（AI 起名 / 记忆抽取）
@@ -53,6 +80,9 @@ class LLMService:
         timeout: float | None = None,
         max_retries: int | None = None,
     ) -> LLMResult:
+        # 入口即记账：超限抛 RateLimitError（普通函数，由调用方处理）
+        self._charge_quota()
+
         payload = self._with_system(messages, system_prompt)
         timeout = timeout if timeout is not None else self._settings.request_timeout_seconds
         max_retries = max_retries if max_retries is not None else self._settings.max_retries
@@ -94,6 +124,51 @@ class LLMService:
         temperature: float | None = None,
         max_tokens: int | None = None,
     ) -> Iterator[StreamEvent]:
+        """流式入口：先记账，再委托给 `_stream_impl`。
+
+        【与 chat() 的「不对称」是刻意的，不是疏漏】
+        - `chat()` 是普通函数：超限直接抛 `RateLimitError`，调用方自己处理；
+        - `stream()` 超限**不抛异常**，而是产一个 `ErrorEvent` 收尾。
+
+        原因是本层的契约：**事件流总是有始有终**，UI 才能线性 `for` 消费、
+        不需要 try 包生成器。若这里抛异常，就会破坏这个契约，
+        并且异常会从 UI 的 for 循环里冒出去、变成整页红框。
+
+        记账写在**调用时**（而非等第一次迭代）：调用即计费，语义更直观。
+        """
+        try:
+            self._charge_quota()
+        except RateLimitError as exc:
+            log.warning("聊天限流触发：%s", exc)
+            return iter(
+                [
+                    ErrorEvent(
+                        user_message=exc.user_message(),
+                        retryable=True,
+                        provider_label="限流",
+                    )
+                ]
+            )
+        return self._stream_impl(
+            provider_cfg,
+            messages,
+            system_prompt,
+            fallback_cfg=fallback_cfg,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+    def _stream_impl(
+        self,
+        provider_cfg: Provider,
+        messages: Sequence[ChatMessage],
+        system_prompt: str = "",
+        *,
+        fallback_cfg: Provider | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> Iterator[StreamEvent]:
+        """真正的流式实现（含降级链）。限流已在 `stream()` 里记过账。"""
         payload = self._with_system(messages, system_prompt)
         candidates: list[Provider] = [provider_cfg] + ([fallback_cfg] if fallback_cfg else [])
         last_error: ErrorEvent | None = None

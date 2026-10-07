@@ -20,6 +20,7 @@ from soulmate.core.exceptions import (
 )
 from soulmate.core.logging import get_logger
 from soulmate.core.models import UserRecord
+from soulmate.core.ratelimit import get_limiter
 from soulmate.core.security import hash_password, password_strength, verify_password
 from soulmate.core.settings import Settings
 from soulmate.core.validation import validate_username
@@ -120,7 +121,23 @@ class UserStore:
 
     # ── 认证 ──
     def authenticate(self, username: str, password: str) -> UserRecord:
-        """校验账号密码。任何失败统一抛 InvalidCredentials（防枚举）。"""
+        """校验账号密码。任何失败统一抛 InvalidCredentials（防枚举）。
+
+        【限流 key 为什么是 username，而不是 user_id】
+        走到这里时用户**尚未认证**，拿不到 user_id —— 只能用「他声称是谁」。
+
+        【这个取舍的代价，如实记录】
+        按用户名限流 ⇒ 攻击者可以**定向锁死某个账号**：只要针对 `admin` 刷满配额，
+        真管理员在窗口内就登不进来（拒绝服务型副作用）。
+        这是标准取舍（备选是叠加客户端 IP，但 Streamlit 侧拿真实 IP 不可靠，
+        反向代理下还会拿到代理 IP）。缓解与权衡写在 docs/SECURITY.md。
+        """
+        get_limiter().hit(
+            f"login:{username.strip().lower() or '-'}",
+            limit=self._settings.rate_limit_login_per_minute,
+            per_seconds=60,
+        )
+
         user = self._repo.get(username)
         if user is None or not verify_password(password, user.password_hash):
             # 故意统一文案，不给攻击者「用户名存在吗」的信号
