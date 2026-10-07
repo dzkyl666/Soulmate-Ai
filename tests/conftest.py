@@ -91,3 +91,18 @@ def fake_registry():
     from tests.fakes import FakeRegistry
 
     return FakeRegistry()
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """★ 每个用例前后清空进程级限流桶。
+
+    `core.ratelimit` 的 `get_limiter()` 是**模块级单例**。不清的话
+    「限流接线测试」会把配额消耗带到后面的用例里，造成随机失败 ——
+    这类跨用例污染最难查，所以用 autouse 强制隔离。
+    """
+    from soulmate.core.ratelimit import get_limiter
+
+    get_limiter().reset()
+    yield
+    get_limiter().reset()
