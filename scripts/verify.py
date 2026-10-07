@@ -204,6 +204,67 @@ def report_version_binding() -> tuple[str, bool]:
 
 
 # ══════════════════════════════════════════════════════════════
+# 代码规模与提交数（脚本实测，终结手写估算）
+# ══════════════════════════════════════════════════════════════
+#: v1→v2 的基线提交（`1e68f8c` 是 v1 的最后一个提交）。
+#: 「提交数」以此为准 —— 换成别的基线就失去可比性。
+BASELINE_COMMIT = "1e68f8c"
+
+
+def _count_py(root: str) -> tuple[int, int]:
+    """返回 (文件数, 行数)。
+
+    用 `splitlines()` 而不是 PowerShell 的 `Measure-Object -Line` ——
+    后者实测会**少算**（同一份 soulmate/ 它数出 4230，实际 5438）。
+    """
+    files = [p for p in (ROOT / root).rglob("*.py") if p.is_file()]
+    lines = sum(len(p.read_text(encoding="utf-8", errors="replace").splitlines()) for p in files)
+    return len(files), lines
+
+
+def report_code_size() -> None:
+    """打印代码规模与提交数，并把「统计可得」纳入检查项。
+
+    【为什么要写进脚本】
+    过去三轮报告里，commit 数和代码行数**手写过三次、错了两次**
+    （11 vs 9、5359 vs 5611、18 vs 17）。数字交给脚本算，报告直接引用输出，
+    不再有人肉估算的空间。
+    """
+    section("0. 代码规模（强 · 脚本实测）")
+
+    rows: dict[str, tuple[int, int]] = {}
+    for label, root in (("soulmate/", "soulmate"), ("tests/", "tests"), ("scripts/", "scripts")):
+        rows[label] = _count_py(root)
+    main_lines = len((ROOT / "main.py").read_text(encoding="utf-8").splitlines())
+    rows["main.py"] = (1, main_lines)
+
+    print("-" * 62)
+    for label, (n, lines) in rows.items():
+        print(f"  {label:12s} {n:3d} 个文件   {lines:5d} 行")
+    core = rows["soulmate/"][1] + rows["main.py"][1] + rows["scripts/"][1]
+    print(f"  {'核心口径':12s} {rows['soulmate/'][0] + 1 + rows['scripts/'][0]:3d} 个文件   {core:5d} 行"
+          "   （soulmate + main.py + scripts）")
+    print(f"  {'含测试合计':12s} {'':3s}          {core + rows['tests/'][1]:5d} 行")
+    print("-" * 62)
+
+    code, out = run(["git", "rev-list", "--count", f"{BASELINE_COMMIT}..HEAD"])
+    commit_count = out.strip()
+    if code == 0 and commit_count.isdigit():
+        print(f"  提交数（{BASELINE_COMMIT} 之后）：{commit_count}")
+    else:
+        commit_count = "?"
+        print(f"  提交数（{BASELINE_COMMIT} 之后）：?（取不到 —— 可能是浅克隆或缺少该基线提交）")
+    print("-" * 62)
+
+    # 纳入检查：统计本身要可得且合理（防止某天路径写错导致全是 0）
+    all_ok = all(n > 0 and lines > 0 for n, lines in rows.values())
+    check(all_ok, "代码规模统计可得（文件数与行数均 > 0）",
+          " | ".join(f"{k}:{v[0]}文件/{v[1]}行" for k, v in rows.items()), STRONG)
+    check(commit_count.isdigit() and int(commit_count) > 0,
+          f"提交数可得（{BASELINE_COMMIT} 之后 {commit_count} 条）", "", MEDIUM)
+
+
+# ══════════════════════════════════════════════════════════════
 # §1 命令实跑（强）
 # ══════════════════════════════════════════════════════════════
 def check_commands() -> None:
@@ -424,6 +485,17 @@ CAPABILITY_EVIDENCE: list[tuple[str, str]] = [
         "限额之内不误报限流",
         "tests/test_apptest.py::TestLoginRateLimitOnPage::test_first_attempts_show_wrong_password_not_rate_limit",
     ),
+    ("限流：开号档接线", "tests/test_ratelimit_wiring.py::TestRegisterTierIsWired::test_register_is_rate_limited"),
+    ("限流：开号档用全局桶", "tests/test_ratelimit_wiring.py::TestRegisterTierIsWired::test_key_is_global_not_per_username"),
+    ("限流：开号不重复记账", "tests/test_ratelimit_wiring.py::TestRegisterTierIsWired::test_register_via_bootstrap_charges_only_once"),
+    (
+        "SSRF：IPv4 嵌入 IPv6 四种写法",
+        "tests/test_core.py::TestIpv4EmbeddedInIpv6::test_embedded_private_ipv4_is_internal",
+    ),
+    (
+        "SSRF：嵌入写法反向用例（公网仍放行）",
+        "tests/test_core.py::TestIpv4EmbeddedInIpv6::test_public_or_embedded_public_is_allowed",
+    ),
 ]
 
 
@@ -443,6 +515,47 @@ def check_capability_evidence(collected: set[str]) -> None:
         print("      缺失明细：")
         for m in missing:
             print(f"        · {m}")
+
+
+# ══════════════════════════════════════════════════════════════
+# §4b 文档里的数字必须与实测一致
+# ══════════════════════════════════════════════════════════════
+#: (文件, 正则, 实际值取哪个, 人话说明)
+#: 正则必须捕获 1 组数字。
+DOC_COUNT_CLAIMS: list[tuple[str, str, str, str]] = [
+    ("README.md", r"badge/tests-(\d+)%20passed", "total", "测试徽章"),
+    ("README.md", r"\*\*(\d+) 个用例\*\*", "total", "功能对比表里的用例数"),
+    ("README.md", r"# (\d+) 个用例（含 UI 冒烟", "total", "目录树注释"),
+    ("README.md", r"当前：\*\*(\d+) passed\*\*", "total", "开发与测试小节"),
+    ("docs/ARCHITECTURE.md", r"# (\d+) passed", "total", "测试命令示例"),
+    ("docs/SECURITY.md", r"现在有 (\d+) 条\*\*调用链\*\*测试", "wiring", "限流接线测试数"),
+]
+
+
+def check_doc_counts(collected: set[str]) -> None:
+    """★ 文档里写的数字必须与实测一致。
+
+    【为什么值得单独一条检查】
+    手写数字在四轮里错了四次：11 vs 9、5359 vs 5611、18 vs 17，
+    以及 README 徽章/表格/目录树里残留的 `223`（加 P1 回归后实际已 296）。
+    这是「文档承诺 ≠ 实际行为」最朴素的形态 —— 靠人记得去改是不行的，
+    用正则把它钉住：改测试忘了改文档，这里直接红。
+    """
+    section("4b. 文档数字与实测一致（中）")
+    actual = {
+        "total": len(collected),
+        "wiring": len([t for t in collected if t.startswith("tests/test_ratelimit_wiring.py::")]),
+    }
+    for rel, pattern, key, what in DOC_COUNT_CLAIMS:
+        expected = actual[key]
+        found = re.findall(pattern, read(rel))
+        if not found:
+            check(False, f"{rel} 的{what}：正则应能匹配到数字",
+                  f"没匹配到 —— 正则可能已失效：{pattern}", MEDIUM)
+            continue
+        wrong = [f for f in found if int(f) != expected]
+        detail = f"文档写 {found}，实际 {expected}" if wrong else f"{expected}"
+        check(not wrong, f"{rel} 的{what} = {expected}", detail, MEDIUM)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -531,12 +644,14 @@ def check_ci() -> None:
 # ══════════════════════════════════════════════════════════════
 def main() -> int:
     version, clean = report_version_binding()
+    report_code_size()
 
     check_commands()
     check_layer_matrix()
     check_capability_wiring()
     collected = _test_node_ids()
     check_capability_evidence(collected)
+    check_doc_counts(collected)
     check_security_surface()
     check_deliverables()
     check_ci()

@@ -6,7 +6,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.63-FF4B4B?logo=streamlit&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-223%20passed-3fb950)
+![Tests](https://img.shields.io/badge/tests-302%20passed-3fb950)
 ![Ruff](https://img.shields.io/badge/lint-ruff-261230)
 ![Mypy](https://img.shields.io/badge/type-mypy-2A6DB2)
 ![License](https://img.shields.io/badge/license-MIT-blue)
@@ -61,7 +61,7 @@ v1 是一个 8 文件的平铺 demo（已归档在 `legacy/`）。v2 是一次**
 | 性能 | 每次 rerun 全量读盘 | mtime 缓存 + 目录列表缓存 + 上下文预算裁剪 |
 | 安全 | 无校验，可填内网地址 | 输入校验 + SSRF 防护 + 限流 + 生产配置 fail-fast |
 | 可靠性 | 流式中断丢回复 | 半截回复保留落盘 + 重试按钮 |
-| 质量 | 20 个用例 | **223 个用例**（含 UI 冒烟与数据安全网）+ ruff + mypy 全绿 |
+| 质量 | 20 个用例 | **302 个用例**（含 UI 冒烟与数据安全网）+ ruff + mypy 全绿 |
 | 交付 | 手工 `streamlit run` | Dockerfile + compose + GitHub Actions CI + pre-commit |
 
 新增能力：模型降级链、会话导出（Markdown/JSON）、数据备份与轮转、用量统计、系统诊断页、
@@ -235,7 +235,7 @@ soulmate migrate --user bob          # 把 v1 老数据搬进 bob 的目录
 │   ├── auth/                     #   身份：本机账号库/会话令牌/OIDC 适配
 │   ├── ui/                       #   表现：页面编排/聊天/侧边栏/弹窗/设置/诊断/主题
 │   └── cli.py                    #   命令行工具
-├── tests/                        # 223 个用例（含 UI 冒烟 + 数据安全网）
+├── tests/                        # 302 个用例（含 UI 冒烟 + 数据安全网）
 ├── legacy/                       # v1 平铺代码归档（只作对照，不是入口）
 ├── docs/                         # 架构/安全/部署/迁移文档
 ├── .streamlit/config.toml        # Streamlit 首屏主题
@@ -339,7 +339,7 @@ python scripts/verify.py       # ★ 端到端验收（62 项，分强/中/弱�
 - **不联网、不花钱**：模型调用用可编程的假 Provider（`tests/fakes.py`），能精确演出「中途断流」「限流」「超时」
 - **不碰真实数据**：`tests/test_data_safety.py` 断言测试期间真实 `data/` 目录指纹不变
 - **含 UI 冒烟**：用 Streamlit `AppTest` 真的把 `main.py` 跑起来，抓 import 错、widget 参数不兼容这类只有运行才暴露的问题
-- 当前：**223 passed**，ruff 与 mypy 全绿
+- 当前：**302 passed**，ruff 与 mypy 全绿
 
 > ⚠️ 改完 `.py` 后必须**重启** Streamlit（Ctrl+C 再跑）。热更新只重执行入口，不会重新 import 子模块。
 
