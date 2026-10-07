@@ -1,0 +1,66 @@
+# ══════════════════════════════════════════════════════════════
+# Soulmate AI · 一键起服务
+# ══════════════════════════════════════════════════════════════
+#
+# 用法：
+#     1) cp .env.example .env   并填好 SOULMATE_APP_SECRET（必须 ≥32 位随机串）
+#     2) docker compose up -d
+#     3) 浏览器打开 http://localhost:8501 ，首屏创建管理员账号
+#
+# 常用：
+#     docker compose logs -f         看日志
+#     docker compose down            停服务（数据卷保留）
+#     docker compose up -d --build   改代码后重建
+# ──────────────────────────────────────────────────────────────
+
+services:
+  soulmate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: soulmate-ai:latest
+    container_name: soulmate-ai
+    restart: unless-stopped
+
+    # 密钥等敏感配置走 .env（不进镜像、不进版本库）
+    env_file:
+      - .env
+
+    environment:
+      # 生产模式：会启用严格配置校验（弱密钥/开放注册会拒绝启动）
+      SOULMATE_ENV: production
+      SOULMATE_DATA_DIR: /data
+      SOULMATE_DEBUG: "false"
+
+    ports:
+      # 只监听本机，避免直接把未加 TLS 的服务暴露到公网。
+      # 要让外部访问请在前面加 Nginx/Caddy 反向代理并配 HTTPS。
+      - "127.0.0.1:8501:8501"
+
+    volumes:
+      # 所有用户数据（伴侣、会话、加密后的 Key、记忆、备份）
+      - soulmate-data:/data
+
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8501/_stcore/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+    # 日志轮转，防止把宿主机磁盘写满
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+    # 基本加固：容器内不需要提权
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  soulmate-data:
+    driver: local

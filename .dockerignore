@@ -1,0 +1,40 @@
+# 构建镜像时不该进上下文的东西（越小越快，也避免泄密）
+
+.git/
+.github/
+.venv/
+venv/
+
+# ★ 绝不能进镜像：真实数据与密钥
+data/
+session/
+.env
+.env.local
+.streamlit/secrets.toml
+
+# 测试与开发工具产物
+tests/
+legacy/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# 开发用配置
+.pre-commit-config.yaml
+requirements-dev.txt
+
+# 文档与编辑器配置（运行不需要）
+docs/
+*.md
+.idea/
+.vscode/
+.gitignore
+docker-compose.yml
+Dockerfile

@@ -1,27 +1,31 @@
 # ══════════════════════════════════════════════════════════════
-# Soulmate AI · 运行依赖
+# Soulmate AI · 运行依赖（生产最小集）
 # ══════════════════════════════════════════════════════════════
 #
 # 安装：
 #     pip install -r requirements.txt
 #
+# 开发/测试额外依赖（pytest/ruff/mypy/pre-commit）见 requirements-dev.txt，
+# 或直接 `pip install -e ".[dev]"`（版本约束统一在 pyproject.toml）。
+#
+# ⚠️ 本文件与 pyproject.toml 的 [project.dependencies] 保持一致；
+#    改版本请两边同时改。
+#
 # 环境：Python 3.11 或以上（本机实测 3.12.13 / Windows 11）
-#
-# 下面两个版本号是实测跑通的组合，故意锁死版本：
-# 保证任何人 clone 下来装到的，都和我开发时是同一套环境，
-# 不会因为某个包发了新版本就莫名其妙跑不起来。
-# 想升级的话，改完请自己完整跑一遍再提交。
-#
-# 说明：本项目只直接依赖下面这两个包。
-# pandas / numpy / altair / protobuf 等是 Streamlit 自己的依赖，
-# pip 会自动装上，不需要（也不该）写在这里。
 # ──────────────────────────────────────────────────────────────
 
-# Web 界面框架
-#   注意：弹窗功能 @st.dialog 需要 1.34 以上
+# Web 界面框架（@st.dialog / st.login 都要求较新版本）
 streamlit==1.63.0
 
 # 大模型调用 SDK
 #   硅基流动 / OpenAI / Claude / 通义 / DeepSeek / 智谱 / Kimi / 豆包……
 #   全都通过它走 OpenAI 兼容协议，所以只需要这一个
 openai==3.11.0
+
+# 配置管理：环境变量 + .env，带类型校验（所有可调项集中在 core/settings.py）
+pydantic>=2.13,<3
+pydantic-settings>=2.13,<3
+
+# 安全：API Key 加密落盘（Fernet）、登录口令哈希（bcrypt）
+cryptography>=46,<51
+bcrypt>=4.3,<6

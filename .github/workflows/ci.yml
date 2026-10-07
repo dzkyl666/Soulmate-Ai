@@ -1,0 +1,118 @@
+name: CI
+
+# 每次 push 与 PR 都跑：代码规范 + 类型检查 + 测试。
+# 目标是「改坏了当场知道」，而不是上线后才发现。
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:   # 允许在 Actions 页面手动触发
+
+# 同一分支的新提交取消旧的运行，省额度
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # CI 里不用真实密钥：给一个够长的占位值即可（非 production 不校验强度）
+  SOULMATE_ENV: test
+  SOULMATE_APP_SECRET: ci-placeholder-secret-not-used-in-production-0123456789
+  SOULMATE_DATA_DIR: ${{ github.workspace }}/.ci-data
+  SOULMATE_AUTH_MODE: local
+  SOULMATE_ALLOW_SIGNUP: "true"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  quality:
+    name: lint + type + test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Ruff（代码规范 + 安全规则）
+        run: ruff check soulmate tests main.py --output-format=github
+
+      - name: Mypy（类型检查）
+        run: mypy soulmate main.py
+
+      - name: Pytest（单元 + UI 冒烟）
+        run: pytest tests -q --cov=soulmate --cov-report=term-missing --cov-report=xml
+
+      - name: 上传覆盖率
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: ignore
+
+  cli-smoke:
+    name: CLI 冒烟
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: 自检命令必须能用（安装与配置没坏）
+        run: |
+          python -m soulmate.cli version
+          python -m soulmate.cli doctor
+          python -m soulmate.cli list-users
+
+  docker-build:
+    name: 镜像可构建
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: 构建（不推送，只验证 Dockerfile 没坏）
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: soulmate-ai:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: 容器能起并健康
+        run: |
+          docker run -d --name soulmate-ci -p 8501:8501 \
+            -e SOULMATE_APP_SECRET=ci-placeholder-secret-not-used-in-production-0123456789 \
+            soulmate-ai:ci
+          echo "等待健康检查…"
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8501/_stcore/health >/dev/null 2>&1; then
+              echo "健康检查通过"; exit 0
+            fi
+            sleep 2
+          done
+          echo "健康检查失败，打印容器日志："
+          docker logs soulmate-ci
+          exit 1
+      - name: 清理
+        if: always()
+        run: docker rm -f soulmate-ci || true

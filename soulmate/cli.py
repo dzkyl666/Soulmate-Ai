@@ -60,11 +60,12 @@ def _cmd_create_user(args: argparse.Namespace) -> int:
         return 1
     print(f"已创建用户 {user.username}（角色 {user.role}）")
 
-    # 顺手迁移：第一个用户通常带着老数据
-    container = ServiceContainer(settings, user.username)
-    summary = run_all(settings, user.username, container)
-    if summary["flat_moved"] or summary["legacy_sessions"]:
-        print(f"已迁移老数据: {summary}")
+    # 刻意**不**在这里自动迁移：迁移会移动真实数据文件，不该藏在「开个号」里
+    # 顺手做掉。要迁移请显式执行 `soulmate migrate --user <用户名>`。
+    print(
+        "如需把 v1 老数据（data/ 顶层的 providers.json 等）搬进该用户目录，"
+        f"请执行：soulmate migrate --user {user.username}"
+    )
     return 0
 
 

@@ -1,0 +1,22 @@
+# ══════════════════════════════════════════════════════════════
+# Soulmate AI · 开发/测试依赖
+# ══════════════════════════════════════════════════════════════
+#
+# 安装：
+#     pip install -r requirements.txt -r requirements-dev.txt
+# 或者一把梭（等价，版本约束来自 pyproject.toml）：
+#     pip install -e ".[dev]"
+#
+# 装完可以跑：
+#     ruff check soulmate tests main.py     # 代码规范
+#     mypy soulmate main.py                 # 类型检查
+#     pytest tests -q                       # 单元 + UI 冒烟测试
+# ──────────────────────────────────────────────────────────────
+
+-r requirements.txt
+
+pytest>=8.3,<10
+pytest-cov>=6,<8
+ruff>=0.14,<1
+mypy>=1.14,<2
+pre-commit>=4,<5

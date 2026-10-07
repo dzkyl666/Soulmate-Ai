@@ -1,0 +1,67 @@
+# ══════════════════════════════════════════════════════════════
+# pre-commit：提交前自动跑一遍检查，别把坏代码提交进去
+# ══════════════════════════════════════════════════════════════
+#
+# 启用（只需一次）：
+#     pip install pre-commit
+#     pre-commit install
+#
+# 手动对全部文件跑一遍：
+#     pre-commit run --all-files
+#
+# 跳过某次检查（不推荐）：
+#     git commit --no-verify
+# ──────────────────────────────────────────────────────────────
+
+repos:
+  # ── 通用卫生 ──
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: check-merge-conflict
+      - id: detect-private-key      # 挡住误提交私钥
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+
+  # ── 代码规范（含 bandit 安全规则）──
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.10
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+        # 本项目中文注释较多，格式化保持"提示但不强制阻断"的策略：
+        # 想统一格式时手动跑 `ruff format` 即可。
+        stages: [manual]
+
+  # ── 类型检查（只查核心层与 UI，跟 mypy 配置一致）──
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.20.2
+    hooks:
+      - id: mypy
+        files: ^(soulmate|main\.py)
+        args: [--config-file=pyproject.toml]
+        additional_dependencies:
+          - pydantic>=2.13,<3
+          - pydantic-settings>=2.13,<3
+          - cryptography>=46,<51
+          - bcrypt>=4.3,<6
+          - streamlit==1.63.0
+          - openai==3.11.0
+
+  # ── ★ 防止把密钥/数据提交上去 ──
+  - repo: local
+    hooks:
+      - id: forbid-secrets-and-data
+        name: 检查是否误提交密钥或数据目录
+        entry: bash -c 'git diff --cached --name-only | grep -E "^(data/|session/|\.env$|\.streamlit/secrets\.toml)" && { echo "❌ 检测到敏感文件被加入提交（data/、session/、.env、secrets.toml）。请把它们移出暂存区。"; exit 1; } || exit 0'
+        language: system
+        pass_filenames: false
+        always_run: true

@@ -1,16 +1,48 @@
-# Python 虚拟环境
+# ── Python 虚拟环境 ──
 .venv/
 venv/
 
-# Python 缓存
+# ── Python 缓存 / 构建产物 ──
 __pycache__/
 *.pyc
+*.pyo
+build/
+dist/
+*.egg-info/
 
-# PyCharm 配置
+# ── 测试与类型检查缓存 ──
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# ── IDE ──
 .idea/
+.vscode/
 
-# 数据目录（本地生成：模型服务含 API Key、伴侣配置、聊天记录）——绝不上传
+# ── ★ 数据目录（绝不上传）──
+# 里面是：模型服务的 API Key（加密后）、伴侣配置、聊天记录、长期记忆
 data/
-
-# 老版本的单层会话目录（已被 data/ 取代，保留以作备份）
+# 老版本的单层会话目录（已被 data/ 取代，保留以作迁移来源）
 session/
+
+# ── ★ 密钥与本地配置（绝不上传）──
+# .env 里可能含 SOULMATE_APP_SECRET；示例文件 .env.example 是提交的
+.env
+.env.local
+*.pem
+*.key
+
+# Streamlit 的 secrets（含 OIDC 客户端密钥）
+.streamlit/secrets.toml
+
+# ── 备份文件 ──
+*.bak
+*.bak-*
+*.corrupt-*
+
+# ── 日志 ──
+*.log
+logs/
