@@ -46,19 +46,54 @@ class UserStore:
         return len(self._repo.list())
 
     # ── 创建 ──
+    def _charge_register_quota(self) -> None:
+        """开号配额记账。`bootstrap()` 与 `register()` 共用，但**不重复计**。
+
+        【为什么 key 是全局（`register:global`）而不是 username】
+        登录那档按 username 记是有道理的（要防定向爆破某个账号）；
+        但注册不一样：攻击者刷号时会**不断换用户名**，按 username 记账
+        等于每条都从一个空桶开始 —— 记了等于没记。所以这里用全局桶，
+        限制的是「整个进程每分钟最多开多少个号」，这才是真实风险面。
+
+        【代价，如实记录】
+        全局桶意味着理论上可以被用来**阻塞他人注册**（把配额刷满，
+        真用户这一分钟内就注册不了）。对个人 / 小团队应用这是可接受的：
+        真有人刷号时，你本来就希望先停下来。而且生产环境的首要控制不是限流，
+        而是 `SOULMATE_ALLOW_SIGNUP=false`（`SOULMATE_ENV=production` 时会强制校验）。
+        """
+        get_limiter().hit(
+            "register:global",
+            limit=self._settings.rate_limit_register_per_minute,
+            per_seconds=60,
+        )
+
     def bootstrap(self, username: str, password: str) -> UserRecord:
-        """第一个用户：直接给 admin 角色。"""
+        """第一个用户：直接给 admin 角色。
+
+        【为什么首启也记账】首次初始化是「谁先到谁当管理员」的窗口，
+        没人管的话可以被脚本抢占。记账后刷号速率被限制住。
+        """
+        self._charge_register_quota()
         user = self._new_user(username, password)
         user.role = "admin"
         self._repo.upsert(user)
         return user
 
     def register(self, username: str, password: str) -> UserRecord:
-        """自助注册。未开放注册 / 重名 / 弱密码都会抛出明确异常。"""
-        if self.needs_bootstrap():  # 还没 admin，先 bootstrap
+        """自助注册。未开放注册 / 重名 / 弱密码 / 开号过快都会抛出明确异常。
+
+        【记账位置的两点刻意设计】
+        1. 走 bootstrap 分支时**不在本方法再记一次** —— bootstrap 内部已经记过，
+           否则一次注册会消耗两格配额（和"一次抽取耗两档"是同类坑，能避就避）。
+        2. 记账放在 `allow_signup` 判断**之后** —— 「注册功能关着」不是攻击行为，
+           不该消耗配额、不该让运维在关着注册时还看到配额被吃掉。
+           但重名/弱密码检查在记账**之后**，所以刷重名同样受限。
+        """
+        if self.needs_bootstrap():  # 还没 admin，先 bootstrap（内部已记账）
             return self.bootstrap(username, password)
         if not self._settings.allow_signup:
             raise RegistrationDisabled()
+        self._charge_register_quota()
         if self._repo.exists(username):
             raise ValidationError("用户名已存在")
         problems = password_strength(password)

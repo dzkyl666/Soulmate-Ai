@@ -93,6 +93,12 @@ class Settings(BaseSettings):
     rate_limit_chat_per_minute: int = Field(default=30, ge=1)
     rate_limit_extract_per_minute: int = Field(default=60, ge=1)
     rate_limit_login_per_minute: int = Field(default=10, ge=1)
+    rate_limit_register_per_minute: int = Field(default=10, ge=1)
+    """注册/首次初始化的**全局**配额（每进程每分钟开号上限）。
+
+    注意这是**全局桶**而不是按用户名 —— 注册场景攻击者会不断换用户名，
+    按 username 记账等于没限流。详见 UserStore._charge_register_quota 的说明。
+    """
 
     # ── 对话 ────────────────────────────────────────────────
     default_history_length: int = Field(default=15, ge=1, le=100)

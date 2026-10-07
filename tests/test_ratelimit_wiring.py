@@ -20,7 +20,7 @@ from __future__ import annotations
 import pytest
 
 from soulmate.auth.user_store import UserStore
-from soulmate.core.exceptions import InvalidCredentials, RateLimitError
+from soulmate.core.exceptions import InvalidCredentials, RateLimitError, RegistrationDisabled
 from soulmate.core.models import ChatMessage, Provider
 from soulmate.core.settings import Settings
 from soulmate.llm.service import LLMService
@@ -34,8 +34,10 @@ GOOD_PW = "Passw0rd123"
 MSG = [ChatMessage(role="user", content="hi")]
 
 
-def _settings(tmp_path, *, chat: int = 3, extract: int = 3, login: int = 3) -> Settings:
-    """三档配额都设成小值，方便「第 N+1 次必须被拒」。"""
+def _settings(
+    tmp_path, *, chat: int = 3, extract: int = 3, login: int = 3, register: int = 3
+) -> Settings:
+    """各档配额都设成小值，方便「第 N+1 次必须被拒」。"""
     return Settings(
         env="test",
         app_secret="t" * 48,
@@ -44,6 +46,7 @@ def _settings(tmp_path, *, chat: int = 3, extract: int = 3, login: int = 3) -> S
         rate_limit_chat_per_minute=chat,
         rate_limit_extract_per_minute=extract,
         rate_limit_login_per_minute=login,
+        rate_limit_register_per_minute=register,
         max_retries=0,
     )
 
@@ -103,7 +106,85 @@ class TestLoginTierIsWired:
 
 
 # ══════════════════════════════════════════════════════════
-# 证明 2 / 三档之二：聊天限流（真实调用链：LLMService.chat / stream）
+# 证明 1b / 四档之四：开号限流（真实调用链：UserStore.register / bootstrap）
+# ══════════════════════════════════════════════════════════
+class TestRegisterTierIsWired:
+    """开号档的三个关键性质：**会拦**、**用全局桶**、**不重复记账**。
+
+    为什么全局桶这件事要专门测：如果实现成 `register:{username}`，
+    下面 `test_key_is_global_not_per_username` 会失败 —— 换名字就不受限了，
+    而「换名字」恰恰是刷号攻击的标准做法。这条测试就是钉这个语义的。
+    """
+
+    def test_register_is_rate_limited(self, tmp_path):
+        """配置开号限额 N=3 → 第 4 次 register() 必须抛 RateLimitError。"""
+        settings = _settings(tmp_path, register=3, login=99)
+        store = _user_store(settings)
+        # 第 1 次无用户 → 走 bootstrap 分支；后两次走正常注册
+        for i in range(3):
+            store.register(f"user{i}", GOOD_PW)
+        with pytest.raises(RateLimitError):
+            store.register("one-more", GOOD_PW)
+
+    def test_bootstrap_itself_is_metered(self, tmp_path):
+        """首启创建管理员也记账 ——「谁先到谁是 admin」的窗口不该完全不设速率。"""
+        settings = _settings(tmp_path, register=1)
+        store = _user_store(settings)
+        store.bootstrap("first", GOOD_PW)  # 第 1 次放行
+        with pytest.raises(RateLimitError):
+            store.bootstrap("second", GOOD_PW)  # 第 2 次被拒
+
+    def test_register_via_bootstrap_charges_only_once(self, tmp_path):
+        """★ 反向断言：register() 走 bootstrap 分支时**只记一次账**。
+
+        把限额设成 1：若实现里 register 与 bootstrap 各记一次，
+        第二次记账就会抛 RateLimitError，这次注册必然失败。
+        所以「这次注册成功」本身就证明了没有重复记账。
+        （和「一次抽取耗两档」是同类坑，能避就避。）
+        """
+        settings = _settings(tmp_path, register=1)
+        store = _user_store(settings)
+        user = store.register("first", GOOD_PW)  # 只该消耗 1 格
+        assert user.role == "admin", "首启注册应拿到 admin"
+
+    def test_key_is_global_not_per_username(self, tmp_path):
+        """★ 证明用的是全局桶：换用户名也照样受限（防换名刷号的关键语义）。"""
+        settings = _settings(tmp_path, register=2)
+        store = _user_store(settings)
+        for i in range(2):
+            store.register(f"user{i}", GOOD_PW)
+        with pytest.raises(RateLimitError):
+            store.register("totally-different-name", GOOD_PW)
+
+    def test_closed_signup_does_not_consume_quota(self, tmp_path):
+        """注册功能关着时不该消耗配额 —— 那不是攻击行为，别让运维白掉配额。"""
+        settings_open = _settings(tmp_path, register=2)
+        store_open = _user_store(settings_open)
+        store_open.bootstrap("admin", GOOD_PW)  # 用掉 1 格
+
+        # 注册关着的同一套配置（限流器是进程级单例，两个 store 共用同一个桶）
+        settings_closed = settings_open.model_copy(update={"allow_signup": False})
+        store_closed = _user_store(settings_closed)
+        for _ in range(5):
+            with pytest.raises(RegistrationDisabled):
+                store_closed.register("someone", GOOD_PW)
+
+        # 若上面 5 次消耗了配额，这里就会抛 RateLimitError
+        assert store_open.register("legit", GOOD_PW).username == "legit"
+
+    def test_register_quota_does_not_block_login(self, tmp_path):
+        """开号档与登录档是**独立两档**：开号刷满不该影响已注册用户登录。"""
+        settings = _settings(tmp_path, register=1, login=2)
+        store = _user_store(settings)
+        store.bootstrap("admin", GOOD_PW)  # 开号档已用尽
+        with pytest.raises(RateLimitError):
+            store.register("extra", GOOD_PW)
+        # 登录照常（用的是 login:{username} 另一个桶）
+        assert store.authenticate("admin", GOOD_PW).username == "admin"
+
+
+# ══════════════════════════════════════════════════════════
+# 证明 2 / 四档之二：聊天限流（真实调用链：LLMService.chat / stream）
 # ══════════════════════════════════════════════════════════
 class TestChatTierIsWired:
     def test_chat_entry_charges_quota(self, tmp_path, fake_registry):
