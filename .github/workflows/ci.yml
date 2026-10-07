@@ -48,7 +48,7 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Ruff（代码规范 + 安全规则）
-        run: ruff check soulmate tests main.py --output-format=github
+        run: ruff check soulmate tests main.py scripts --output-format=github
 
       - name: Mypy（类型检查）
         run: mypy soulmate main.py

@@ -82,12 +82,15 @@ def _hostname_resolves_to_private(host: str) -> bool:
     为什么 fail-open：离线开发时 DNS 解析必然失败，若此时直接拦，用户连本地都配不了。
     这层防护的定位是「挡住明显的 SSRF」，不是「防火墙」。
     """
+    # 情况一：host 本身就是 IP 字面量
     try:
-        # 已是 IP 就直接判断
         ipaddress.ip_address(host)
-        return _is_private_ip(host)
     except ValueError:
-        pass
+        pass  # 不是 IP，走下面的 DNS 解析分支
+    else:
+        return _is_private_ip(host)
+
+    # 情况二：域名 → 解析出所有地址，任一为内网就拦
     try:
         infos = socket.getaddrinfo(host, None)
     except socket.gaierror:

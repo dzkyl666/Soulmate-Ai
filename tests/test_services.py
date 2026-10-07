@@ -361,7 +361,10 @@ class TestDiagnostics:
     def test_collect_has_expected_shape(self, container, settings):
         from soulmate.services.diagnostics import collect
 
-        info = collect(settings, users_count=1, providers_count=2, user_id="tester")
+        info = collect(
+            settings, users_count=1, providers_count=2, user_id="tester",
+            extra_versions={"streamlit": "1.63.0", "openai": "3.11.0"},
+        )
         assert info["environments"]["env"] == "test"
         assert info["versions"]["soulmate"]
         assert info["data"]["current_user"] == "tester"

@@ -83,7 +83,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S", "T20"]
-"soulmate/cli.py" = ["T20"]   # CLI 的职责就是往终端打字
+"soulmate/cli.py" = ["T20"]     # CLI 的职责就是往终端打字
+"scripts/*" = ["T20"]           # 验收脚本同理：它的输出就是给人看的报告
 
 [tool.ruff.lint.isort]
 known-first-party = ["soulmate"]

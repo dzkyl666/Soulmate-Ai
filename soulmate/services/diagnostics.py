@@ -2,14 +2,16 @@
 
 给诊断页用，也适合接到监控（输出是纯 dict，转 JSON 即事件上报）。
 不调用任何模型、不读写用户数据 —— 纯只读巡检，失败也只是给个字段值。
+
+【分层注记】
+本模块刻意**不 import streamlit / openai**：那样会让 services 层反向依赖 UI 依赖。
+第三方库的版本号由调用方（ui 层）通过 `extra_versions` 注入。
 """
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
-
-import openai
-import streamlit
 
 import soulmate
 from soulmate.core.settings import Settings
@@ -32,11 +34,26 @@ def _dir_size(path: Path) -> str:
     return f"{total / 1024**3:.1f} GB"
 
 
-def collect(settings: Settings, *, users_count: int = 0, providers_count: int = 0, user_id: str = "") -> dict:
-    """收集诊断信息（不做任何写操作）。"""
-    import sys
+def collect(
+    settings: Settings,
+    *,
+    users_count: int = 0,
+    providers_count: int = 0,
+    user_id: str = "",
+    extra_versions: dict[str, str] | None = None,
+) -> dict:
+    """收集诊断信息（不做任何写操作）。
 
+    `extra_versions` 由 UI 层传入第三方库版本（如 {"streamlit": ..., "openai": ...}），
+    这样 services 层不必 import 它们。
+    """
     startup_problems = settings.validate_for_startup() if settings.is_production else []
+
+    versions = {
+        "python": sys.version.split()[0],
+        "soulmate": soulmate.__version__,
+    }
+    versions.update(extra_versions or {})
 
     return {
         "environments": {
@@ -45,12 +62,7 @@ def collect(settings: Settings, *, users_count: int = 0, providers_count: int = 
             "auth_mode": settings.auth_mode,
             "allow_signup": settings.allow_signup,
         },
-        "versions": {
-            "python": sys.version.split()[0],
-            "soulmate": soulmate.__version__,
-            "streamlit": streamlit.__version__,
-            "openai": openai.__version__,
-        },
+        "versions": versions,
         "data": {
             "root": str(settings.data_root()),
             "size": _dir_size(settings.data_root()),

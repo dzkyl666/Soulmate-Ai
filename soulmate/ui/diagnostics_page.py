@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+from importlib.metadata import PackageNotFoundError, version
+
 import streamlit as st
 
 from soulmate.core.settings import Settings
@@ -12,10 +14,37 @@ from soulmate.services.container import ServiceContainer
 from soulmate.services.diagnostics import collect
 
 
+def _pkg_version(name: str) -> str:
+    """读已安装包版本。
+
+    用 importlib.metadata 而不是 `import openai` —— 只为拿一个版本号而把
+    openai 引入 UI 层是没必要的耦合（也会让「import openai 只在 llm 层」这条
+    边界失守）。
+    """
+    try:
+        return version(name)
+    except PackageNotFoundError:  # pragma: no cover - 未安装时
+        return "unknown"
+
+
+def _library_versions() -> dict[str, str]:
+    """第三方库版本由 UI 层收集后注入给 services（保持 services 不依赖第三方 UI 库）。"""
+    return {
+        "streamlit": st.__version__,
+        "openai": _pkg_version("openai"),
+    }
+
+
 def render_diagnostics(svc: ServiceContainer, settings: Settings, user_id: str) -> None:
     st.subheader("🩺 系统诊断")
 
-    info = collect(settings, users_count=(svc.user_repo and len(svc.user_repo.list())) or 0, providers_count=len(svc.providers.list_providers()), user_id=user_id)
+    info = collect(
+        settings,
+        users_count=len(svc.user_repo.list()) if svc.user_repo else 0,
+        providers_count=len(svc.providers.list_providers()),
+        user_id=user_id,
+        extra_versions=_library_versions(),
+    )
 
     st.markdown("##### 环境与版本")
     c1, c2, c3 = st.columns(3)
