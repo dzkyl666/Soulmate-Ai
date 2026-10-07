@@ -9,9 +9,14 @@ from __future__ import annotations
 
 import streamlit as st
 
-from soulmate.core.exceptions import ValidationError
-from soulmate.core.presets import DEFAULT_SYSTEM_PROMPT, EMOJI_OPTIONS, PROVIDER_NAMES, PROVIDER_OPTIONS, PROVIDER_PRESETS
-from soulmate.core.security import mask_secret
+from soulmate.core.exceptions import ValidationError, mask_secret
+from soulmate.core.presets import (
+    DEFAULT_SYSTEM_PROMPT,
+    EMOJI_OPTIONS,
+    PROVIDER_NAMES,
+    PROVIDER_OPTIONS,
+    PROVIDER_PRESETS,
+)
 from soulmate.services.container import ServiceContainer
 from soulmate.ui import theme as ui_theme
 
@@ -20,17 +25,17 @@ def _svc() -> ServiceContainer:
     return st.session_state["__container"]
 
 
-def _reset_form_keys(prefix: str) -> None:
+def reset_form_keys(prefix: str) -> None:
     """清掉某前缀下所有 widget 残留状态（避免重开弹窗看到上次内容）。"""
     for k in list(st.session_state.keys()):
-        if k.startswith(prefix + "_") or k.startswith(prefix + "__"):
-            if k != "__container":
-                del st.session_state[k]
+        key = str(k)  # session_state 的键可能是 int，统一成 str 再判断
+        if (key.startswith(prefix + "_") or key.startswith(prefix + "__")) and key != "__container":
+            del st.session_state[key]
 
 
 def _apply_preset(prefix: str) -> None:
     """厂商预设下拉的 on_change：自动填 Base URL 和首个模型名。"""
-    preset_id = st.session_state.get(f"{prefix}_preset")
+    preset_id = str(st.session_state.get(f"{prefix}_preset") or "")
     pp = PROVIDER_PRESETS.get(preset_id)
     if not pp:
         return
@@ -42,11 +47,8 @@ def _apply_preset(prefix: str) -> None:
 # 模型服务
 # ══════════════════════════════════════════════════════════
 def _provider_form(provider: dict, prefix: str) -> dict:
-    svc = _svc()
-
     # 有密文 key（已加密落盘）时回显掩码，编辑时默认不覆盖
     has_stored_key = bool(provider.get("api_key"))
-    stored_hint = ""
 
     cur_preset = provider.get("preset") or "siliconflow"
     if cur_preset not in PROVIDER_PRESETS:
@@ -64,8 +66,7 @@ def _provider_form(provider: dict, prefix: str) -> dict:
             st.session_state[k] = v
 
     if has_stored_key:
-        stored_hint = mask_secret(provider.get("api_key", ""))
-        st.caption(f"当前已保存 Key（{stored_hint}），不填则保留原 Key")
+        st.caption(f"当前已保存 Key（{mask_secret(provider.get('api_key', ''))}），不填则保留原 Key")
 
     st.selectbox(
         "厂商预设",
@@ -143,7 +144,7 @@ def edit_provider_dialog(provider: dict) -> None:
 @st.dialog("确认删除模型服务")
 def delete_provider_dialog(provider: dict) -> None:
     svc = _svc()
-    users = svc.providers.in_use(provider["id"], svc.companions.list())
+    users = svc.providers.in_use(provider["id"], svc.companions.list_companions())
     name = provider.get("alias") or provider.get("model")
     st.write(f"确定要删除模型服务 **{name}** 吗？")
     if users:
@@ -166,27 +167,39 @@ def delete_provider_dialog(provider: dict) -> None:
 # ══════════════════════════════════════════════════════════
 def _companion_form(companion: dict, prefix: str) -> dict:
     svc = _svc()
-    provider_ids = [p.id for p in svc.providers.list()]
+    provider_ids = [p.id for p in svc.providers.list_providers()]
     if not provider_ids:
         st.warning("还没有模型服务，请先添加一个。")
         return {"id": companion.get("id"), "name": "", "provider_id": "", "fallback_provider_id": ""}
+    # 其余分支才有 provider 可选
 
     st.markdown("**① 绑定模型服务（可配备选做降级）**")
+
+    def _provider_label(pid: str) -> str:
+        p = svc.providers.get(pid)
+        return f"「{p.label if p else pid}」"
+
     cur_pid = companion.get("provider_id")
     idx = provider_ids.index(cur_pid) if cur_pid in provider_ids else 0
     provider_id = st.selectbox(
-        "主模型", options=provider_ids, index=idx, format_func=lambda i: f"「{svc.providers.get(i).label if svc.providers.get(i) else i}」",
-        key=f"{prefix}_provider", label_visibility="collapsed",
+        "主模型",
+        options=provider_ids,
+        index=idx,
+        format_func=_provider_label,
+        key=f"{prefix}_provider",
+        label_visibility="collapsed",
     )
-    fb = companion.get("fallback_provider_id") if companion.get("fallback_provider_id") in provider_ids else ""
+    fallback_options: list[str] = ["", *provider_ids]
+    cur_fb = companion.get("fallback_provider_id")
     fallback_id = st.selectbox(
         "备选模型（主模型失败自动切换，可留空）",
-        options=[""] + provider_ids,
-        format_func=lambda i: ("（不设置）" if not i else f"「{svc.providers.get(i).label if svc.providers.get(i) else i}」"),
+        options=fallback_options,
+        index=fallback_options.index(cur_fb) if cur_fb in fallback_options else 0,
+        format_func=lambda i: "（不设置）" if not i else _provider_label(i),
         key=f"{prefix}_fallback",
     )
     if fallback_id not in provider_ids:
-        fallback_id = fb if fb in provider_ids else ""
+        fallback_id = ""
 
     st.markdown("**② 伴侣信息**")
     col1, col2 = st.columns(2)
@@ -221,7 +234,7 @@ def _companion_form(companion: dict, prefix: str) -> dict:
 @st.dialog("新建伴侣", width="large")
 def add_companion_dialog() -> None:
     svc = _svc()
-    if not svc.providers.list():
+    if not svc.providers.list_providers():
         st.warning("还没有模型服务。请先在侧边栏「模型服务」里添加一个。")
         if st.button("知道了", width="stretch"):
             st.rerun()
@@ -280,7 +293,7 @@ def delete_session_dialog(session_id: str, title: str) -> None:
     c1, c2 = st.columns(2)
     with c1:
         if st.button("确定删除", type="primary", width="stretch", icon="✅", key=f"ds_{session_id}"):
-            svc.companions.delete_session(st.session_state.get("_companion_id"), session_id)
+            svc.companions.delete_session(str(st.session_state.get("_companion_id") or ""), session_id)
             if st.session_state.get("_session_id") == session_id:
                 st.session_state["_session_id"] = None
                 st.session_state["_messages"] = []
@@ -301,7 +314,7 @@ def rename_session_dialog(session_id: str, title: str) -> None:
             if not (new_title or "").strip():
                 st.error("名称不能为空")
             else:
-                svc.companions.rename_session(st.session_state.get("_companion_id"), session_id, new_title.strip())
+                svc.companions.rename_session(str(st.session_state.get("_companion_id") or ""), session_id, new_title.strip())
                 st.rerun()
     with c2:
         if st.button("取消", width="stretch", icon="↩️", key=f"rn_x_{session_id}"):

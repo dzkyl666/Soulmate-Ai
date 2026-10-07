@@ -92,7 +92,8 @@ known-first-party = ["soulmate"]
 # Mypy —— 类型检查（渐进式：先收核心层，UI 层放宽）
 # ══════════════════════════════════════════════════════════════
 [tool.mypy]
-python_version = "3.11"
+# 不写死 python_version：让 mypy 跟随当前解释器。
+# 写死 3.11 会在 3.12 环境下解析不了 numpy 的 .pyi（用了 3.12 的 type 语句）而整体报错。
 warn_unused_configs = true
 warn_redundant_casts = true
 warn_unused_ignores = true

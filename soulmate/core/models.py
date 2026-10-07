@@ -14,7 +14,7 @@ pydantic 把「校验 + 默认值 + 序列化」集中在一处，字段错立�
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -24,7 +24,7 @@ Role = Literal["system", "user", "assistant"]
 
 def _now_iso() -> str:
     """统一的时间戳：ISO8601 + 秒级精度 + 显式时区。"""
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 class ChatMessage(BaseModel):

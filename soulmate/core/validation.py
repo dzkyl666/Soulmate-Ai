@@ -92,7 +92,7 @@ def _hostname_resolves_to_private(host: str) -> bool:
         infos = socket.getaddrinfo(host, None)
     except socket.gaierror:
         return False
-    addrs = {info[4][0] for info in infos}
+    addrs = {str(info[4][0]) for info in infos}
     return any(_is_private_ip(a) for a in addrs)
 
 
@@ -108,11 +108,12 @@ def validate_base_url(value: object, *, allow_private: bool | None = None) -> st
 
     if parsed.scheme not in ("http", "https"):
         raise ValidationError("Base URL 只支持 http:// 或 https:// 开头")
-    if not parsed.hostname:
+    hostname = str(parsed.hostname or "")
+    if not hostname:
         raise ValidationError("Base URL 缺少主机名")
 
     allow = get_settings().allow_private_base_url if allow_private is None else allow_private
-    if not allow and _hostname_resolves_to_private(parsed.hostname):
+    if not allow and _hostname_resolves_to_private(hostname):
         raise ValidationError(
             "该地址指向内网/本机，出于安全已阻止。若确需接入内网模型，"
             "请设置 SOULMATE_ALLOW_PRIVATE_BASE_URL=true"

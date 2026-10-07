@@ -9,7 +9,7 @@
 
 from __future__ import annotations
 
-from typing import Iterator, Sequence
+from collections.abc import Iterator, Sequence
 
 import openai
 
@@ -20,7 +20,6 @@ from soulmate.llm.retry import classify_sdk_error
 from soulmate.llm.types import (
     ChunkEvent,
     EndEvent,
-    ErrorEvent,
     LLMResult,
     StreamEvent,
     TokenUsage,
@@ -64,7 +63,7 @@ class OpenAIProvider(LLMProvider):
             kwargs["max_tokens"] = max_tokens
         try:
             resp = self._client(timeout, max_retries).chat.completions.create(**kwargs)
-        except Exception as exc:  # noqa: BLE001 - 统一翻译成项目异常
+        except Exception as exc:
             raise classify_sdk_error(exc, model=model, base_url=self._base_url or "") from exc
 
         usage = TokenUsage()

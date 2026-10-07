@@ -9,10 +9,11 @@ from __future__ import annotations
 import streamlit as st
 
 from soulmate.auth import oidc
-from soulmate.core.security import mask_secret
+from soulmate.core.exceptions import mask_secret
 from soulmate.core.settings import Settings
 from soulmate.services.container import ServiceContainer
-from soulmate.ui import dialogs, theme as ui_theme
+from soulmate.ui import dialogs
+from soulmate.ui import theme as ui_theme
 
 
 def _nav_radio() -> str:
@@ -30,7 +31,6 @@ def _nav_radio() -> str:
 
 def _theme_select(svc: ServiceContainer) -> None:
     """主题下拉：切换时应用 + 写入 profile（重启后仍保留）。"""
-    profile = svc.profile()
     current = ui_theme.current_theme_name(ui_theme.DEFAULT_THEME)
 
     def _on_change() -> None:
@@ -57,7 +57,7 @@ def render_sidebar(svc: ServiceContainer, settings: Settings, user_id: str) -> s
 
         # ── 我的伴侣 ──
         with st.expander("我的伴侣", expanded=True):
-            companions = svc.companions.list()
+            companions = svc.companions.list_companions()
             if not companions:
                 st.caption("还没有伴侣，点下面创建一个吧")
             for c in companions:
@@ -75,7 +75,7 @@ def render_sidebar(svc: ServiceContainer, settings: Settings, user_id: str) -> s
                     if st.button("", icon="🗑️", key=f"delc_{c.id}", help="删除这个伴侣"):
                         dialogs.delete_companion_dialog(c.model_dump())
 
-            if svc.providers.list():
+            if svc.providers.list_providers():
                 if st.button("➕ 新建伴侣", width="stretch", type="secondary" if companions else "primary", key="add_companion_btn"):
                     dialogs.reset_form_keys("add_c")
                     dialogs.add_companion_dialog()
@@ -89,8 +89,8 @@ def render_sidebar(svc: ServiceContainer, settings: Settings, user_id: str) -> s
             if not cid:
                 st.caption("先创建一个伴侣")
             else:
-                c_name = svc.companions.get(cid).name if svc.companions.get(cid) else ""
-                st.caption(f"当前：{c_name or ''}")
+                cur = svc.companions.get(cid)
+                st.caption(f"当前：{cur.name if cur else ''}")
                 st.button("➕ 新建会话", width="stretch", icon="➕", key="new_session_btn", on_click=lambda: _new_session(svc))
                 for s in svc.companions.list_metas(cid):
                     col1, col2 = st.columns([5, 1])
@@ -109,10 +109,10 @@ def render_sidebar(svc: ServiceContainer, settings: Settings, user_id: str) -> s
                             dialogs.delete_session_dialog(s.session_id, s.title)
 
         # ── 模型服务 ──
-        with st.expander("模型服务", expanded=not svc.providers.list()):
-            if not svc.providers.list():
+        with st.expander("模型服务", expanded=not svc.providers.list_providers()):
+            if not svc.providers.list_providers():
                 st.caption("还没有模型服务，先添加一个")
-            for p in svc.providers.list():
+            for p in svc.providers.list_providers():
                 col1, col2 = st.columns([5, 1])
                 with col1:
                     key_tail = mask_secret(p.api_key) if p.api_key else "（走环境变量）"
@@ -129,7 +129,7 @@ def render_sidebar(svc: ServiceContainer, settings: Settings, user_id: str) -> s
                     if st.button("", icon="🗑️", key=f"delp_{p.id}", help="删除这个模型服务"):
                         dialogs.delete_provider_dialog(p.model_dump())
 
-            if st.button("➕ 添加模型服务", width="stretch", type="secondary" if svc.providers.list() else "primary", key="add_provider_btn"):
+            if st.button("➕ 添加模型服务", width="stretch", type="secondary" if svc.providers.list_providers() else "primary", key="add_provider_btn"):
                 dialogs.reset_form_keys("add_p")
                 dialogs.add_provider_dialog()
                 st.rerun()
@@ -171,10 +171,9 @@ def render_sidebar(svc: ServiceContainer, settings: Settings, user_id: str) -> s
                         if st.button("", icon="🗑️", key=f"forget_{f.id}", help="让 TA 忘掉这条"):
                             svc.memory.forget_fact(cid, f.id)
                             st.rerun()
-                if facts:
-                    if st.button("🧹 清空全部记忆", width="stretch", key="forget_all_btn"):
-                        svc.memory.forget_all(cid)
-                        st.rerun()
+                if facts and st.button("🧹 清空全部记忆", width="stretch", key="forget_all_btn"):
+                    svc.memory.forget_all(cid)
+                    st.rerun()
 
         # ── 我的资料 / 用户信息 / 退出 ──
         st.divider()
@@ -223,9 +222,10 @@ def _is_admin(svc: ServiceContainer, user_id: str) -> bool:
 
 
 def _do_logout(svc: ServiceContainer, user_id: str) -> None:
-    # 清掉本用户相关的会话状态
+    # 清掉本用户相关的会话状态（session_state 的键可能是 int，统一成 str 判断）
     for key in list(st.session_state.keys()):
-        if key.startswith("__soulmate_") or key in (
+        name = str(key)
+        if name.startswith("__soulmate_") or name in (
             "user_id",
             "_companion_id",
             "_session_id",

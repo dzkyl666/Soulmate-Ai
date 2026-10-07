@@ -47,7 +47,7 @@ from soulmate.services.container import ServiceContainer  # noqa: E402
 TEST_SECRET = "t" * 48
 
 
-def pytest_sessionfinish(session, exitstatus):  # noqa: ARG001
+def pytest_sessionfinish(session, exitstatus):
     """会话结束清理临时目录与配置缓存。"""
     get_settings.cache_clear()
     shutil.rmtree(_TMP_ROOT, ignore_errors=True)

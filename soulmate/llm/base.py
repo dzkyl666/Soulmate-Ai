@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Iterator, Sequence
+from collections.abc import Iterator, Sequence
 
 from soulmate.core.models import ChatMessage
 from soulmate.llm.types import LLMResult, StreamEvent

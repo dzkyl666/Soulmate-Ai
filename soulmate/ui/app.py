@@ -56,7 +56,7 @@ def run() -> None:
     st.session_state["__container"] = svc  # dialogs/侧边栏都从这里拿容器
     try:
         migration.run_all(settings, user_id, svc)
-    except Exception:  # noqa: BLE001 - 迁移失败不能挡着用户用
+    except Exception:
         log.exception("迁移异常（跳过）")
 
     # ── 4. 主题：持久化偏好首屏生效 ──

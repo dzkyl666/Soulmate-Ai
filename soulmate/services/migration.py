@@ -22,9 +22,8 @@ from soulmate.core.logging import get_logger
 from soulmate.core.models import ChatMessage
 from soulmate.core.presets import DEFAULT_SYSTEM_PROMPT
 from soulmate.core.settings import PROJECT_ROOT, Settings
-from soulmate.services.companion_service import CompanionService
 from soulmate.services.container import ServiceContainer
-from soulmate.storage.atomic import delete_file, read_json, atomic_write_json
+from soulmate.storage.atomic import delete_file, read_json
 
 log = get_logger("soulmate.services.migration")
 
@@ -75,7 +74,7 @@ def migrate_legacy_session_dir(settings: Settings, container: ServiceContainer, 
     files = sorted(p for p in legacy_dir.iterdir() if p.suffix == ".json")
     if not files:
         return 0
-    if container.companions.list():
+    if container.companions.list_companions():
         return 0  # 已有伴侣 = 已迁移过（或用户自己建了），不打扰
 
     first = read_json(files[0], {}) or {}
@@ -115,7 +114,7 @@ def run_all(settings: Settings, user_id: str, container: ServiceContainer) -> di
     """用户首次登录时调用：整体迁移并返回摘要。幂等，可反复跑。"""
     summary: dict[str, Any] = {"flat_moved": [], "legacy_sessions": 0}
     summary["flat_moved"] = migrate_legacy_flat(settings, user_id)
-    if not container.companions.list():
+    if not container.companions.list_companions():
         summary["legacy_sessions"] = migrate_legacy_session_dir(settings, container)
     container.session_repo.clear()  # 迁完清缓存，让新数据立刻可读
     if summary["flat_moved"] or summary["legacy_sessions"]:

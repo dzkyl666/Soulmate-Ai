@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from soulmate.core.exceptions import ProviderError
 from soulmate.core.models import ChatMessage
 
-__all__ = ["ChatMessage", "TokenUsage", "LLMResult", "ChunkEvent", "FallbackEvent", "ErrorEvent", "EndEvent"]
+__all__ = ["ChatMessage", "ChunkEvent", "EndEvent", "ErrorEvent", "FallbackEvent", "LLMResult", "TokenUsage"]
 
 
 class TokenUsage(BaseModel):

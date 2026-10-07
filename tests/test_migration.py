@@ -64,7 +64,7 @@ class TestFlatMigration:
         _legacy_flat(settings.data_root())
         moved = migrate_legacy_flat(settings, "alice")
         assert "providers.json" not in moved
-        assert [p.id for p in container.providers.list()] == [mine.id]
+        assert [p.id for p in container.providers.list_providers()] == [mine.id]
 
     def test_writes_marker(self, settings):
         _legacy_flat(settings.data_root())
@@ -95,7 +95,7 @@ class TestLegacySessionMigration:
         moved = migrate_legacy_session_dir(settings, container, legacy_dir=settings.legacy_session_path)
 
         assert moved == 2
-        comps = container.companions.list()
+        comps = container.companions.list_companions()
         assert len(comps) == 1 and comps[0].name == "老街坊"
         metas = container.companions.list_metas(comps[0].id)
         assert len(metas) == 2
@@ -108,7 +108,7 @@ class TestLegacySessionMigration:
         container = ServiceContainer(settings, "alice")
         container.companions.upsert({"name": "已有的伴侣", "avatar": "🧸"})
         assert migrate_legacy_session_dir(settings, container, legacy_dir=settings.legacy_session_path) == 0
-        assert [c.name for c in container.companions.list()] == ["已有的伴侣"]
+        assert [c.name for c in container.companions.list_companions()] == ["已有的伴侣"]
 
     def test_no_dir_is_noop(self, settings):
         container = ServiceContainer(settings, "alice")
@@ -142,7 +142,7 @@ class TestRunAll:
     def test_run_all_on_fresh_install(self, settings):
         container = ServiceContainer(settings, "alice")
         assert run_all(settings, "alice", container) == {"flat_moved": [], "legacy_sessions": 0}
-        assert container.companions.list() == []
+        assert container.companions.list_companions() == []
 
 
 class TestMigrationPreservesData:

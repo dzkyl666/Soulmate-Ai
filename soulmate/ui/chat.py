@@ -13,7 +13,7 @@ from __future__ import annotations
 import streamlit as st
 
 from soulmate.core.exceptions import ValidationError
-from soulmate.core.models import ChatMessage
+from soulmate.core.models import ChatMessage, Companion, Provider, SessionMeta
 from soulmate.core.settings import Settings
 from soulmate.llm.types import ChunkEvent, EndEvent, ErrorEvent, FallbackEvent
 from soulmate.services.container import ServiceContainer
@@ -31,29 +31,34 @@ def _load_current(messages: list[ChatMessage]) -> None:
 
 
 def render_chat(svc: ServiceContainer, settings: Settings) -> None:
-    companions = svc.companions.list()
+    companions = svc.companions.list_companions()
     if not companions:
         _render_onboarding(svc)
         return
 
     # ── 当前伴侣 ──
-    cid = st.session_state.get("_companion_id")
+    # st.session_state 是动态字典，取出来的值 mypy 只能当 Any；
+    # 这里统一显式收敛类型，后面就不用到处写 cast。
+    cid: str = str(st.session_state.get("_companion_id") or companions[0].id)
     if cid not in [c.id for c in companions]:
         cid = companions[0].id
+    st.session_state["_companion_id"] = cid
+
+    companion: Companion | None = svc.companions.get(cid)
+    if companion is None:  # 并发删除等极端情况：退回第一个
+        companion = companions[0]
+        cid = companion.id
         st.session_state["_companion_id"] = cid
-    companion = svc.companions.get(cid)
-    provider = svc.provider_config(companion.provider_id)  # type: ignore[arg-type]
-    fallback = svc.fallback_config(companion)  # type: ignore[arg-type]
+
+    provider: Provider | None = svc.provider_config(companion.provider_id)
+    fallback: Provider | None = svc.fallback_config(companion)
     profile = svc.profile()
 
     # ── 当前会话 ──
-    metas = svc.companions.list_metas(cid)
-    sid = st.session_state.get("_session_id")
+    metas: list[SessionMeta] = svc.companions.list_metas(cid)
+    sid: str = str(st.session_state.get("_session_id") or "")
     if sid not in [m.session_id for m in metas]:
-        if metas:
-            sid = metas[0].session_id
-        else:
-            sid = svc.companions.new_session_id()
+        sid = metas[0].session_id if metas else svc.companions.new_session_id()
         st.session_state["_session_id"] = sid
 
     # 会话切换了就重载消息
@@ -70,11 +75,13 @@ def render_chat(svc: ServiceContainer, settings: Settings) -> None:
     if companion.purpose:
         meta += f"　｜　用途：{companion.purpose}"
     st.caption(meta)
-    c_title, c_ai, c_rename = st.columns([6, 1, 1])
+    _c_title, c_ai, c_rename = st.columns([6, 1, 1])
     with c_ai:
         if st.button("✨ AI 起名", width="stretch", help="让伴侣给会话起个标题", key="ai_title_btn"):
             if not messages:
                 st.toast("先聊两句再起名吧～")
+            elif provider is None:
+                st.error("这个伴侣还没绑定模型服务")
             else:
                 try:
                     with st.spinner("TA 正在想标题…"):
@@ -86,7 +93,7 @@ def render_chat(svc: ServiceContainer, settings: Settings) -> None:
                     st.warning("模型没返回有效的标题，再试一次？")
                 except ValidationError as exc:
                     st.error(exc.user_message())
-                except Exception as exc:  # noqa: BLE001 - UI 兜底
+                except Exception as exc:
                     _log("ai_title", str(exc))
                     st.error("起名失败，请稍后重试")
     with c_rename:
@@ -162,12 +169,11 @@ def _render_manage_messages(
         with col_msg:
             is_ai = m.role == "assistant"
             st.chat_message(name if is_ai else (profile.nickname or "我"), avatar=avatar if is_ai else (profile.avatar or "🐶")).write(m.content)
-    if selected:
-        if st.button(f"🗑️ 删除选中的 {len(selected)} 条", type="primary"):
-            for i in sorted(selected, reverse=True):
-                del messages[i]
-            svc.companions.save_messages(cid, sid, messages)
-            st.rerun()
+    if selected and st.button(f"🗑️ 删除选中的 {len(selected)} 条", type="primary"):
+        for i in sorted(selected, reverse=True):
+            del messages[i]
+        svc.companions.save_messages(cid, sid, messages)
+        st.rerun()
 
 
 # ══════════════════════════════════════════════════════════
@@ -252,10 +258,9 @@ def _send_and_stream(
         st.rerun()
         return
 
-    if st.session_state.get("_retry"):
-        st.caption("点击上方「↻ 重试」，或直接重发消息。")
-        if st.button("↻ 重试", type="secondary", key="retry_btn"):
-            st.rerun()
+    if st.session_state.get("_retry") and st.button("↻ 重试", type="secondary", key="retry_btn"):
+        st.caption("或在输入框直接重发消息。")
+        st.rerun()
 
 
 # ══════════════════════════════════════════════════════════
@@ -263,7 +268,7 @@ def _send_and_stream(
 # ══════════════════════════════════════════════════════════
 def _render_onboarding(svc: ServiceContainer) -> None:
     st.subheader("👋 欢迎来到 Soulmate AI")
-    if not svc.providers.list():
+    if not svc.providers.list_providers():
         st.write("**第一步：先接入一个模型服务。** 填入 Base URL / API Key / 模型名就能接入任意 OpenAI 兼容服务。")
         if st.button("➕ 添加模型服务", type="primary", key="onboard_add_p"):
             dialogs.add_provider_dialog()
@@ -277,28 +282,38 @@ def _render_onboarding(svc: ServiceContainer) -> None:
 
 def handle_new_session(svc: ServiceContainer) -> None:
     """点「新建会话」：当前消息先落盘，然后开一个空会话。"""
-    cid = st.session_state.get("_companion_id")
+    cid = str(st.session_state.get("_companion_id") or "")
     if not cid:
         return
-    svc.companions.save_messages(cid, st.session_state.get("_session_id") or "", st.session_state.get("_messages") or [])
-    st.session_state["_session_id"] = svc.companions.new_session_id()
+    svc.companions.save_messages(
+        cid,
+        str(st.session_state.get("_session_id") or ""),
+        st.session_state.get("_messages") or [],
+    )
+    new_sid = svc.companions.new_session_id()
+    st.session_state["_session_id"] = new_sid
     st.session_state["_messages"] = []
-    st.session_state["_loaded_key"] = (cid, st.session_state["_session_id"])
+    st.session_state["_loaded_key"] = (cid, new_sid)
 
 
 def handle_switch_companion(svc: ServiceContainer, companion_id: str) -> None:
-    cid = st.session_state.get("_companion_id")
-    if cid and cid != companion_id:
-        svc.companions.save_messages(cid, st.session_state.get("_session_id") or "", st.session_state.get("_messages") or [])
+    prev_cid = str(st.session_state.get("_companion_id") or "")
+    if prev_cid and prev_cid != companion_id:
+        svc.companions.save_messages(
+            prev_cid,
+            str(st.session_state.get("_session_id") or ""),
+            st.session_state.get("_messages") or [],
+        )
     st.session_state["_companion_id"] = companion_id
-    metas = svc.companions.list_metas(companion_id)
-    st.session_state["_session_id"] = metas[0].session_id if metas else svc.companions.new_session_id()
-    st.session_state["_messages"] = svc.companions.load_messages(companion_id, st.session_state["_session_id"])
-    st.session_state["_loaded_key"] = (companion_id, st.session_state["_session_id"])
+    metas: list[SessionMeta] = svc.companions.list_metas(companion_id)
+    sid = metas[0].session_id if metas else svc.companions.new_session_id()
+    st.session_state["_session_id"] = sid
+    st.session_state["_messages"] = svc.companions.load_messages(companion_id, sid)
+    st.session_state["_loaded_key"] = (companion_id, sid)
 
 
 def handle_switch_session(svc: ServiceContainer, session_id: str) -> None:
-    cid = st.session_state.get("_companion_id")
+    cid = str(st.session_state.get("_companion_id") or "")
     st.session_state["_session_id"] = session_id
     st.session_state["_messages"] = svc.companions.load_messages(cid, session_id)
     st.session_state["_loaded_key"] = (cid, session_id)

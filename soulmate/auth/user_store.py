@@ -9,8 +9,8 @@
 
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Literal
 
 from soulmate.core.exceptions import (
     AccountDisabled,
@@ -72,11 +72,8 @@ class UserStore:
         existing = self._repo.get(username)
         if existing:
             return existing
-        if self.needs_bootstrap():
-            role = "admin"
-        else:
-            role = "user"
-        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        role: Literal["admin", "user"] = "admin" if self.needs_bootstrap() else "user"
+        now = datetime.now(UTC).isoformat(timespec="seconds")
         user = UserRecord(
             username=username,
             password_hash="",  # OIDC 用户无本地口令
@@ -90,7 +87,9 @@ class UserStore:
         self._repo.upsert(user)
         return user
 
-    def admin_create_user(self, username: str, password: str, *, role: str = "user") -> UserRecord:
+    def admin_create_user(
+        self, username: str, password: str, *, role: Literal["admin", "user"] = "user"
+    ) -> UserRecord:
         """管理员/命令行开号：不受 `allow_signup` 关门的限制（这是有意的）。
 
         生产环境关闭自助注册后，新用户只能由此入口创建 —— 这一点要写进文档。
@@ -103,16 +102,18 @@ class UserStore:
         self._repo.upsert(user)
         return user
 
-    def _new_user(self, username: str, password: str, *, role: str = "user") -> UserRecord:
+    def _new_user(
+        self, username: str, password: str, *, role: Literal["admin", "user"] = "user"
+    ) -> UserRecord:
         username = validate_username(username)
         problems = password_strength(password)
         if problems:
             raise ValidationError("密码不够强：" + "、".join(problems))
-        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        now = datetime.now(UTC).isoformat(timespec="seconds")
         return UserRecord(
             username=username,
             password_hash=hash_password(password) if password else "",
-            role=role,  # type: ignore[arg-type]
+            role=role,
             created_at=now,
             updated_at=now,
         )
@@ -141,7 +142,7 @@ class UserStore:
         if user is None:
             raise ValidationError("用户不存在")
         user.disabled = bool(disabled)
-        user.updated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        user.updated_at = datetime.now(UTC).isoformat(timespec="seconds")
         self._repo.upsert(user)
 
     def delete_user(self, username: str) -> None:

@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -185,7 +186,7 @@ class Settings(BaseSettings):
                 "生产环境必须设置 SOULMATE_APP_SECRET（否则每次重启密钥都变，已加密的 API Key 将无法解密）"
             )
         elif len(self.app_secret) < 32:
-            problems.append("SOULMATE_APP_SECRET 至少 32 个字符（当前 %d）" % len(self.app_secret))
+            problems.append(f"SOULMATE_APP_SECRET 至少 32 个字符（当前 {len(self.app_secret)}）")
         elif self.app_secret in _WEAK_SECRETS:
             problems.append("SOULMATE_APP_SECRET 是常见弱值，请换一个随机串")
 
@@ -236,10 +237,8 @@ def _bootstrap_secret(settings: Settings) -> str:
         generated = _secrets.token_urlsafe(48)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(generated, encoding="utf-8")
-        try:
-            os.chmod(path, 0o600)  # Windows 上基本无效，POSIX 上有效；失败不影响功能
-        except OSError:  # pragma: no cover - 平台差异
-            pass
+        with contextlib.suppress(OSError):  # Windows 上基本无效，POSIX 上有效
+            os.chmod(path, 0o600)
         return generated
     except OSError:
         # 磁盘只读等极端情况：退回进程内随机密钥（本次运行有效，重启后已存密钥解不开）

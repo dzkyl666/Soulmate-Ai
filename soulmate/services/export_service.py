@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from soulmate.core.logging import get_logger
@@ -51,8 +51,10 @@ class ExportService:
         返回备份目录路径。失败抛 StorageError 由上层兜住。
         """
         backups_root = self._settings.backup_dir(user_dir.name)
-        # 注意：源目录里如果已经包含 backups/，要排除，避免自我嵌套
-        ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        # 注意：源目录里如果已经包含 backups/，要排除，避免自我嵌套。
+        # 时间戳带微秒：否则同一秒内连点两次备份会落到同一目录名上互相覆盖，
+        # 「保留最近 N 份」的轮转计数也会算错。
+        ts = datetime.now(UTC).strftime("%Y%m%d-%H%M%S-%f")
         dest = backups_root / ts
         dest.parent.mkdir(parents=True, exist_ok=True)
 

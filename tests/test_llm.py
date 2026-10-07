@@ -13,8 +13,8 @@ except ImportError:  # pragma: no cover - 兼容旧版 openai
 from soulmate.core.exceptions import (
     ProviderAuthError,
     ProviderBadResponse,
+    ProviderError,
     ProviderRateLimited,
-    ProviderTimeout,
 )
 from soulmate.core.models import ChatMessage, Provider
 from soulmate.llm.retry import backoff_delay, classify_sdk_error
@@ -52,13 +52,13 @@ class TestChatFallback:
         fake_registry.register("p1", FakeProvider("主", fail=True))
         fake_registry.register("p2", FakeProvider("备", fail=True))
         svc = _svc(settings, fake_registry)
-        with pytest.raises(Exception):
+        with pytest.raises(ProviderError):
             svc.chat(_p("p1"), MSG, fallback_cfg=_p("p2"))
 
     def test_raises_without_fallback(self, settings, fake_registry):
         fake_registry.register("p1", FakeProvider("主", fail=True))
         svc = _svc(settings, fake_registry)
-        with pytest.raises(Exception):
+        with pytest.raises(ProviderError):
             svc.chat(_p("p1"), MSG)
 
     def test_system_prompt_goes_first(self, settings, fake_registry):

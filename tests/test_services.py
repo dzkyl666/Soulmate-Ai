@@ -8,9 +8,8 @@ import pytest
 
 from soulmate.core.exceptions import ValidationError
 from soulmate.core.models import ChatMessage, Provider
-from soulmate.services.companion_service import CompanionService
-from soulmate.services.memory_service import MemoryService
 from soulmate.llm.service import LLMService
+from soulmate.services.memory_service import MemoryService
 from tests.fakes import FakeProvider
 
 
@@ -44,7 +43,7 @@ class TestProviderService:
     def test_in_use_reports_companions(self, container):
         p = container.providers.upsert({"base_url": "https://x.com/v1", "model": "m"})
         container.companions.upsert({"name": "小团子", "provider_id": p.id, "avatar": "🧸"})
-        assert container.providers.in_use(p.id, container.companions.list()) == ["小团子"]
+        assert container.providers.in_use(p.id, container.companions.list_companions()) == ["小团子"]
 
     def test_test_connection_failure_is_reported_not_raised(self, container, fake_registry):
         fake_registry.register("p1", FakeProvider("挂", fail=True))
@@ -336,8 +335,8 @@ class TestContainer:
         a = ServiceContainer(settings, "alice")
         b = ServiceContainer(settings, "bob")
         a.companions.upsert({"name": "Alice的伴侣", "avatar": "🧸"})
-        assert [c.name for c in a.companions.list()] == ["Alice的伴侣"]
-        assert b.companions.list() == []
+        assert [c.name for c in a.companions.list_companions()] == ["Alice的伴侣"]
+        assert b.companions.list_companions() == []
         assert a.user_dir != b.user_dir
 
     def test_provider_config_lookup(self, container):

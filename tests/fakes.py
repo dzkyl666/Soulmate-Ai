@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from typing import Iterator, Sequence
+from collections.abc import Iterator, Sequence
 
 from soulmate.core.exceptions import ProviderError
 from soulmate.core.models import ChatMessage, Provider
@@ -108,7 +108,7 @@ class FakeRegistry:
     def __init__(self) -> None:
         self.providers: dict[str, LLMProvider] = {}
 
-    def register(self, provider_id: str, provider: LLMProvider) -> "FakeRegistry":
+    def register(self, provider_id: str, provider: LLMProvider) -> FakeRegistry:
         self.providers[provider_id] = provider
         return self
 

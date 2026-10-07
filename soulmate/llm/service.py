@@ -12,14 +12,13 @@
 
 from __future__ import annotations
 
-from typing import Iterator, Sequence
+from collections.abc import Iterator, Sequence
 
 from soulmate.core.logging import get_logger
 from soulmate.core.models import ChatMessage, Provider
 from soulmate.core.settings import Settings
 from soulmate.llm.registry import ProviderRegistry, get_registry
 from soulmate.llm.types import (
-    EndEvent,
     ErrorEvent,
     FallbackEvent,
     LLMResult,
@@ -73,7 +72,7 @@ class LLMService:
                     temperature=temperature,
                     max_tokens=max_tokens,
                 )
-            except Exception as exc:  # noqa: BLE001 - 降级链要兜住一切 ProviderError
+            except Exception as exc:
                 last_err = exc
                 if i < len(candidates) - 1:
                     log.warning("主模型失败，切换备选 %s -> %s: %s", cfg.label, candidates[i + 1].label, exc)

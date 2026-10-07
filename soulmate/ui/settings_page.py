@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 import streamlit as st
 
 from soulmate.auth.user_store import UserStore
-from soulmate.core.security import mask_secret
+from soulmate.core.exceptions import mask_secret
 from soulmate.core.settings import Settings
 from soulmate.services.container import ServiceContainer
-from soulmate.ui import dialogs, theme as ui_theme
+from soulmate.ui import dialogs
 
 
 def render_settings(svc: ServiceContainer, settings: Settings, user_id: str) -> None:
@@ -23,14 +25,15 @@ def render_settings(svc: ServiceContainer, settings: Settings, user_id: str) -> 
             st.rerun()
 
     with st.expander("📤 导出当前会话", expanded=True):
-        cid = st.session_state.get("_companion_id")
-        sid = st.session_state.get("_session_id")
+        cid = str(st.session_state.get("_companion_id") or "")
+        sid = str(st.session_state.get("_session_id") or "")
+        companion = svc.companions.get(cid) if cid else None
         doc = svc.session_repo.load(cid, sid) if (cid and sid) else None
-        if doc is None or not doc.messages:
+        if doc is None or not doc.messages or companion is None:
             st.caption("当前会话还没有内容，先去聊几句吧。")
         else:
             st.caption(f"「{doc.title or '新会话'}」· {len(doc.messages)} 条消息")
-            md = svc.export.session_to_markdown(svc.companions.get(cid), doc)
+            md = svc.export.session_to_markdown(companion, doc)
             js = svc.export.session_to_json(doc)
             c1, c2 = st.columns(2)
             with c1:
@@ -66,7 +69,8 @@ def render_settings(svc: ServiceContainer, settings: Settings, user_id: str) -> 
             with st.form("admin_new_user"):
                 nu = st.text_input("新用户名")
                 npw = st.text_input("初始密码（至少 8 位，含大小写和数字）", type="password")
-                role = st.selectbox("角色", options=["user", "admin"], index=0)
+                role_options: list[Literal["user", "admin"]] = ["user", "admin"]
+                role = st.selectbox("角色", options=role_options, index=0)
                 if st.form_submit_button("创建用户"):
                     try:
                         u = store.admin_create_user(nu, npw, role=role)
@@ -95,7 +99,7 @@ def render_settings(svc: ServiceContainer, settings: Settings, user_id: str) -> 
                             st.rerun()
 
     with st.expander("🔑 我的模型服务", expanded=False):
-        for p in svc.providers.list():
+        for p in svc.providers.list_providers():
             key_display = mask_secret(p.api_key) if p.api_key else "（环境变量）"
             st.caption(f"**{p.alias or p.model}**　·　{p.model}　·　{key_display}")
 

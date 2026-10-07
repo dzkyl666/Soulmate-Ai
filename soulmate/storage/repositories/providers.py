@@ -9,13 +9,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 from soulmate.core.logging import get_logger
 from soulmate.core.models import Provider
 from soulmate.core.security import SecretBox
 from soulmate.storage.atomic import atomic_write_json, read_json
-from soulmate.storage.repositories.base import ListRepository
 
 log = get_logger("soulmate.storage.repos.providers")
 

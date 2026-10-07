@@ -55,7 +55,7 @@ def _cmd_create_user(args: argparse.Namespace) -> int:
         password = getpass.getpass("密码（至少8位，含大小写和数字）: ")
     try:
         user = store.admin_create_user(username, password, role=args.role)
-    except Exception as exc:  # noqa: BLE001 - CLI 直接吐人话
+    except Exception as exc:
         print(f"[错误] {exc}")
         return 1
     print(f"已创建用户 {user.username}（角色 {user.role}）")

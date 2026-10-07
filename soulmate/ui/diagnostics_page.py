@@ -15,7 +15,7 @@ from soulmate.services.diagnostics import collect
 def render_diagnostics(svc: ServiceContainer, settings: Settings, user_id: str) -> None:
     st.subheader("🩺 系统诊断")
 
-    info = collect(settings, users_count=svc.user_repo and len(svc.user_repo.list()) or 0, providers_count=len(svc.providers.list()), user_id=user_id)
+    info = collect(settings, users_count=(svc.user_repo and len(svc.user_repo.list())) or 0, providers_count=len(svc.providers.list_providers()), user_id=user_id)
 
     st.markdown("##### 环境与版本")
     c1, c2, c3 = st.columns(3)
@@ -57,10 +57,10 @@ def render_diagnostics(svc: ServiceContainer, settings: Settings, user_id: str) 
     # ── 模型连通性一键测试 ──
     st.markdown("##### 模型连通性测试")
     st.caption("会真的发一次最小请求（约几秒）。用于排查「为什么伴侣不回复」。")
-    if not svc.providers.list():
+    if not svc.providers.list_providers():
         st.info("还没有模型服务。")
     else:
-        for p in svc.providers.list():
+        for p in svc.providers.list_providers():
             label = p.alias or p.model
             key = f"ping_{p.id}"
             if st.button(f"⚡ 测试 {label}", key=key):

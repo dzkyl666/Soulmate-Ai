@@ -9,9 +9,8 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 from soulmate.core.logging import get_logger
 from soulmate.core.models import MemoryFact
@@ -52,7 +51,7 @@ class MemoryRepository:
                 MemoryFact(
                     id=uuid.uuid4().hex[:8],
                     text=t,
-                    created_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                    created_at=datetime.now(UTC).isoformat(timespec="seconds"),
                     session_id=session_id,
                 )
             )

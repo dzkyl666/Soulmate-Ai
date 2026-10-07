@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
-from soulmate.core.models import ChatMessage, Companion, MemoryFact, Provider, SessionDoc, UserRecord
+from soulmate.core.models import ChatMessage, Companion, Provider, SessionDoc, UserRecord
 from soulmate.core.security import SecretBox
 from soulmate.storage.atomic import (
     atomic_write_json,

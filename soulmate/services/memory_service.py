@@ -23,7 +23,7 @@ log = get_logger("soulmate.services.memory")
 class MemoryService:
     def __init__(self, repo: MemoryRepository, llm: LLMService, settings: Settings) -> None:
         self._repo = repo
-        self._llm = llm
+        self.llm = llm
         self._settings = settings
 
     # ── 读 ──
@@ -70,7 +70,7 @@ class MemoryService:
             f"{'用户' if m.role == 'user' else '伴侣'}：{m.content}" for m in recent
         )
         try:
-            result = self._llm.chat(
+            result = self.llm.chat(
                 provider,
                 [ChatMessage(role="user", content=convo)],
                 system_prompt=EXTRACT_PROMPT,

@@ -15,7 +15,8 @@ Streamlit 是「每次交互都全量重跑」的架构，一个页面点一下�
 from __future__ import annotations
 
 import os
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 
 class MTimeCache:

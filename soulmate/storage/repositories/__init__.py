@@ -11,11 +11,11 @@ from soulmate.storage.repositories.sessions import SessionRepository
 from soulmate.storage.repositories.users import UserRepository
 
 __all__ = [
-    "ListRepository",
-    "ProviderRepository",
     "CompanionRepository",
-    "SessionRepository",
+    "ListRepository",
     "MemoryRepository",
     "ProfileRepository",
+    "ProviderRepository",
+    "SessionRepository",
     "UserRepository",
 ]

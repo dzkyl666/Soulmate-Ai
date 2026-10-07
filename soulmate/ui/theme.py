@@ -16,6 +16,10 @@ from __future__ import annotations
 
 import streamlit as st
 
+from soulmate.core.logging import get_logger
+
+log = get_logger("soulmate.ui.theme")
+
 THEMES = {
     "月白": {
         "base": "light",
@@ -66,8 +70,8 @@ def apply_theme(name: str) -> None:
         for key, value in THEMES[name].items():
             st._config.set_option(f"theme.{key}", value)
     except Exception:
-        # 私有 API 防御：未来版本若移除，至少不崩
-        pass
+        # 私有 API 防御：未来版本若移除，至少不崩（但要留下痕迹便于排查）
+        log.warning("应用主题失败（Streamlit 私有 API 可能已变更）", exc_info=True)
 
 
 def current_theme_name(default: str = DEFAULT_THEME) -> str:
@@ -77,7 +81,7 @@ def current_theme_name(default: str = DEFAULT_THEME) -> str:
             if all(st._config.get_option(f"theme.{k}") == v for k, v in colors.items()):
                 return name
     except Exception:
-        pass
+        log.debug("反查主题失败，回落到默认", exc_info=True)
     return default
 
 

@@ -10,9 +10,9 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Literal
 
-from soulmate.core.exceptions import ValidationError
 from soulmate.core.logging import get_logger
 from soulmate.core.models import ChatMessage, Companion, Profile, Provider, SessionDoc, SessionMeta
 from soulmate.core.presets import DEFAULT_SYSTEM_PROMPT
@@ -37,13 +37,18 @@ class CompanionService:
         self._companions = companions_repo
         self._sessions = sessions_repo
         self._memory = memory_repo
-        self._llm = llm
+        self.llm = llm
         self._settings = settings
 
     # ══════════════════════════════════════════════════════════
     # 伴侣
     # ══════════════════════════════════════════════════════════
-    def list(self) -> list[Companion]:
+    def list_companions(self) -> list[Companion]:
+        """列出全部伴侣。
+
+        注意方法名不能叫 list —— 那会在类命名空间里遮蔽内置 list 类型，
+        导致本类中所有 list[X] 注解都解析失败（mypy 会报 list?[X]）。
+        """
         return self._companions.list()
 
     def get(self, companion_id: str) -> Companion | None:
@@ -64,7 +69,7 @@ class CompanionService:
             system_prompt=self._finish_prompt(system_prompt, name, purpose),
             provider_id=str(data.get("provider_id") or "").strip(),
             fallback_provider_id=str(data.get("fallback_provider_id") or "").strip(),
-            created_at=(data.get("created_at") or datetime.now(timezone.utc).isoformat(timespec="seconds")),
+            created_at=(data.get("created_at") or datetime.now(UTC).isoformat(timespec="seconds")),
         )
         self._companions.upsert(companion)
         return companion
@@ -120,7 +125,7 @@ class CompanionService:
         messages: list[ChatMessage],
         *,
         title: str | None = None,
-        title_source: str | None = None,
+        title_source: Literal["auto", "ai", "manual"] | None = None,
     ) -> None:
         """保存会话。空会话不落盘（删掉旧文件）。
 
@@ -143,7 +148,7 @@ class CompanionService:
             final_title = (old.title if old else "") or self.auto_title(messages)
             final_src = (old.title_source if old else "auto")
 
-        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        now = datetime.now(UTC).isoformat(timespec="seconds")
         doc = SessionDoc(
             session_id=session_id,
             title=final_title,
@@ -179,10 +184,9 @@ class CompanionService:
 
     def generate_ai_title(self, provider: Provider, fallback: Provider | None, messages: list[ChatMessage]) -> str:
         """让伴侣绑定的模型给会话起精炼标题（非流式，一次调用）。"""
-        convo = "\n".join(
-            f"{'用户' if m.role == 'user' else '伴侣'}：{m.content}" for m in messages[:6]
-        )
-        result = self._llm.chat(
+        head: list[ChatMessage] = list(messages[:6])  # 只喂前 6 条：省 token，也够模型看懂主题
+        convo = "\n".join(f"{'用户' if m.role == 'user' else '伴侣'}：{m.content}" for m in head)
+        result = self.llm.chat(
             provider,
             [ChatMessage(role="user", content=convo)],
             system_prompt=(
@@ -209,8 +213,9 @@ class CompanionService:
         if "{name}" in prompt or "{purpose}" in prompt:
             try:
                 prompt = prompt.format(name=companion.name, purpose=companion.purpose or "温柔体贴")
-            except Exception:
-                pass
+            except (KeyError, IndexError, ValueError):
+                # 用户在人设里写了别的花括号占位符：原样保留，不阻断对话
+                log.debug("人设里的占位符无法替换，已原样保留")
 
         nickname = (profile.nickname or "").strip()
         if nickname:

@@ -19,12 +19,13 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from soulmate.core.exceptions import StorageError
 from soulmate.core.logging import get_logger
@@ -48,10 +49,8 @@ def atomic_write_json(path: str | Path, data: Any) -> None:
             os.fsync(f.fileno())
         os.replace(tmp, path)
     except OSError as exc:
-        try:
+        with contextlib.suppress(OSError):
             os.remove(tmp)
-        except OSError:
-            pass
         raise StorageError(f"写入失败 {path}", details={"path": str(path), "cause": str(exc)}) from exc
 
 
@@ -70,10 +69,8 @@ def read_json(path: str | Path, default: Any = None) -> Any:
     except json.JSONDecodeError as exc:
         # 损坏文件：改名留证（不覆盖，方便人工抢救），返回 default
         corrupt = path.with_suffix(path.suffix + f".corrupt-{int(time.time())}")
-        try:
+        with contextlib.suppress(OSError):
             os.replace(path, corrupt)
-        except OSError:
-            pass
         log.error("JSON 损坏，已跳过并留证: %s -> %s (%s)", path, corrupt, exc)
         return default
 

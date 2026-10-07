@@ -60,6 +60,17 @@ class ServiceContainer:
         self.export = ExportService(self.session_repo, settings)
 
     # ── 便捷方法（UI 常用，省得 UI 层拼装）──
+    def set_llm(self, llm: LLMService) -> None:
+        """替换底层 LLM 服务，并**传播**给所有持有它的业务服务。
+
+        为什么需要它：业务服务在构造时就抓住了 llm 的引用，直接写
+        `container.llm = x` 不会影响它们 —— 这是个很容易踩的坑。
+        测试注入假 provider、或将来切换模型后端时用这个方法。
+        """
+        self.llm = llm
+        self.companions.llm = llm
+        self.memory.llm = llm
+
     def provider_config(self, provider_id: str) -> Provider | None:
         return self.providers.get(provider_id)
 

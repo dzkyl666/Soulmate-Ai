@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from soulmate.core.exceptions import ProviderError, ValidationError
+from soulmate.core.exceptions import ProviderError
 from soulmate.core.logging import get_logger
 from soulmate.core.models import ChatMessage, Companion, Provider
 from soulmate.core.settings import Settings
@@ -29,7 +29,8 @@ class ProviderService:
         self._settings = settings
 
     # ── 读 ──
-    def list(self) -> list[Provider]:
+    def list_providers(self) -> list[Provider]:
+        """列出全部模型服务（方法名不叫 list，理由同 CompanionService）。"""
         return self._repo.list()
 
     def get(self, provider_id: str) -> Provider | None:
@@ -55,7 +56,7 @@ class ProviderService:
             base_url=base_url,
             api_key=api_key,
             model=model,
-            created_at=(data.get("created_at") or datetime.now(timezone.utc).isoformat(timespec="seconds")),
+            created_at=(data.get("created_at") or datetime.now(UTC).isoformat(timespec="seconds")),
         )
         self._repo.upsert(provider)
         return provider
@@ -88,7 +89,7 @@ class ProviderService:
         except ProviderError as exc:
             latency = time.perf_counter() - t0
             return False, round(latency, 2), exc.user_message()
-        except Exception as exc:  # noqa: BLE001 - 测试路径兜底
+        except Exception as exc:
             latency = time.perf_counter() - t0
             log.warning("连通性测试异常: %s", exc)
             return False, round(latency, 2), "未知错误，请在日志里查看详情"

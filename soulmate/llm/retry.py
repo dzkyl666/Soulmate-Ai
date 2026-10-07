@@ -19,7 +19,6 @@ from soulmate.core.exceptions import (
     ProviderBadResponse,
     ProviderError,
     ProviderRateLimited,
-    ProviderTimeout,
 )
 from soulmate.core.logging import get_logger
 
@@ -80,7 +79,8 @@ def backoff_delay(attempt: int, base: float) -> float:
     固定延迟的坑：多个请求同时失败后同时重试，会「惊群」地再撞一次。
     加随机抖动把重试时间打散。
     """
-    return base * (2 ** attempt) + random.uniform(0, base)
+    # 这里的随机只用于「打散重试时刻」，不是密码学用途
+    return base * (2 ** attempt) + random.uniform(0, base)  # noqa: S311
 
 
 def sleep_backoff(attempt: int, base: float) -> None:
